@@ -12,10 +12,13 @@ import { Progress } from '@/components/ui/progress'
 import { AgentCard } from '@/components/AgentCard'
 import { IncidentCard } from '@/components/IncidentCard'
 import { ReasoningLog } from '@/components/ReasoningLog'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle } from '@phosphor-icons/react'
+import { WorkflowTemplateCard } from '@/components/WorkflowTemplateCard'
+import { WorkflowTemplateDetail } from '@/components/WorkflowTemplateDetail'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow } from '@/lib/agent-engine'
+import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
 
 const initialAgents: Agent[] = [
   {
@@ -53,14 +56,19 @@ function App() {
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [showNewIncident, setShowNewIncident] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [workflowProgress, setWorkflowProgress] = useState(0)
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState('')
+  const [templateSearch, setTemplateSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   
   const [newIncident, setNewIncident] = useState({
     title: '',
     description: '',
-    severity: 'medium' as IncidentSeverity
+    severity: 'medium' as IncidentSeverity,
+    templateId: ''
   })
 
   const createIncident = () => {
@@ -78,13 +86,21 @@ function App() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       assignedAgents: [],
-      reasoningSteps: []
+      reasoningSteps: [],
+      templateId: newIncident.templateId || undefined
     }
 
     setIncidents(current => [incident, ...(current || [])])
     setShowNewIncident(false)
-    setNewIncident({ title: '', description: '', severity: 'medium' })
-    toast.success('Incident created successfully')
+    setNewIncident({ title: '', description: '', severity: 'medium', templateId: '' })
+    
+    if (newIncident.templateId) {
+      toast.success('Incident created from template', {
+        description: 'Ready for automated workflow execution'
+      })
+    } else {
+      toast.success('Incident created successfully')
+    }
   }
 
   const processIncident = async (incident: Incident) => {
@@ -217,6 +233,33 @@ function App() {
   const activeIncidents = (incidents || []).filter(i => i.status === 'in-progress' || i.status === 'new')
   const resolvedIncidents = (incidents || []).filter(i => i.status === 'resolved')
 
+  const templatesByCategory = getTemplatesByCategory()
+  const categories = ['all', ...Object.keys(templatesByCategory)]
+  
+  const filteredTemplates = templateSearch
+    ? searchTemplates(templateSearch)
+    : selectedCategory === 'all'
+    ? workflowTemplates
+    : templatesByCategory[selectedCategory] || []
+
+  const handleTemplateSelect = (template: WorkflowTemplate) => {
+    setSelectedTemplate(template)
+  }
+
+  const applyTemplateToIncident = () => {
+    if (!selectedTemplate) return
+    
+    setNewIncident({
+      title: selectedTemplate.name,
+      description: selectedTemplate.description,
+      severity: selectedTemplate.severity[0],
+      templateId: selectedTemplate.id
+    })
+    setShowTemplates(false)
+    setShowNewIncident(true)
+    setSelectedTemplate(null)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
@@ -232,10 +275,16 @@ function App() {
               </div>
             </div>
             
-            <Button onClick={() => setShowNewIncident(true)} size="lg">
-              <Plus size={20} className="mr-2" weight="bold" />
-              New Incident
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button onClick={() => setShowTemplates(true)} variant="outline" size="lg">
+                <Sparkle size={20} className="mr-2" weight="duotone" />
+                Workflow Templates
+              </Button>
+              <Button onClick={() => setShowNewIncident(true)} size="lg">
+                <Plus size={20} className="mr-2" weight="bold" />
+                New Incident
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -306,6 +355,15 @@ function App() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {newIncident.templateId && (
+              <Alert>
+                <Sparkle size={20} className="text-primary" />
+                <AlertDescription>
+                  Using workflow template: <strong>{newIncident.title}</strong>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="title">Incident Title</Label>
               <Input
@@ -354,6 +412,85 @@ function App() {
             </Button>
             <Button onClick={createIncident}>Create Incident</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Workflow Templates</DialogTitle>
+            <DialogDescription>
+              Select a pre-configured workflow template for common incident types
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search templates..."
+                  value={templateSearch}
+                  onChange={e => setTemplateSearch(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[200px]">
+                  <FunnelSimple size={16} className="mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-4">
+              {filteredTemplates.length === 0 ? (
+                <Alert>
+                  <AlertDescription>
+                    No templates found matching your criteria.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                filteredTemplates.map(template => (
+                  <WorkflowTemplateCard
+                    key={template.id}
+                    template={template}
+                    onSelect={handleTemplateSelect}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={selectedTemplate !== null} onOpenChange={() => setSelectedTemplate(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedTemplate && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Workflow Template Details</DialogTitle>
+              </DialogHeader>
+              
+              <WorkflowTemplateDetail template={selectedTemplate} />
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={applyTemplateToIncident}>
+                  <Sparkle size={18} className="mr-2" weight="bold" />
+                  Use This Template
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

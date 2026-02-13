@@ -41,6 +41,7 @@ export interface Incident {
   reasoningSteps: ReasoningStep[]
   proposedSolution?: string
   resolution?: string
+  templateId?: string
   metricsImpact?: {
     timeToDetect: number
     timeToResolve: number

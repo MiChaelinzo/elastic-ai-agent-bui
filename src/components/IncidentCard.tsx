@@ -1,8 +1,9 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { Clock, Warning, CheckCircle, XCircle, Sparkle } from '@phosphor-icons/react'
 import type { Incident, IncidentSeverity, IncidentStatus } from '@/lib/types'
+import { getTemplateById } from '@/lib/workflow-templates'
 import { cn } from '@/lib/utils'
 
 const severityColors: Record<IncidentSeverity, string> = {
@@ -35,6 +36,7 @@ interface IncidentCardProps {
 
 export function IncidentCard({ incident, onClick }: IncidentCardProps) {
   const StatusIcon = statusIcons[incident.status]
+  const template = incident.templateId ? getTemplateById(incident.templateId) : null
   
   return (
     <Card
@@ -51,7 +53,12 @@ export function IncidentCard({ incident, onClick }: IncidentCardProps) {
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg mb-1 truncate">{incident.title}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-lg truncate">{incident.title}</h3>
+              {template && (
+                <Sparkle size={16} className="text-primary flex-shrink-0" weight="duotone" />
+              )}
+            </div>
             <p className="text-sm text-muted-foreground line-clamp-2">
               {incident.description}
             </p>
@@ -67,6 +74,13 @@ export function IncidentCard({ incident, onClick }: IncidentCardProps) {
             <StatusIcon size={14} className="mr-1" weight="bold" />
             {incident.status.replace('-', ' ')}
           </Badge>
+          
+          {template && (
+            <Badge variant="outline" className="text-xs bg-primary/10">
+              <Sparkle size={12} className="mr-1" />
+              {template.name}
+            </Badge>
+          )}
           
           {incident.assignedAgents.length > 0 && (
             <Badge variant="outline" className="text-xs">

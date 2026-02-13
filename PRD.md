@@ -19,6 +19,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Create incident → Detector identifies issue type → Analyzer investigates root cause → Resolver proposes fix → Verifier validates solution → Execute action → Report results
 - Success criteria: Agents successfully collaborate with visible reasoning chains and produce actionable resolutions
 
+**Workflow Templates Library**
+- Functionality: Pre-configured workflow templates for common incident types (API latency, database issues, memory leaks, security breaches, etc.) that can be instantly applied
+- Purpose: Accelerates incident response by providing battle-tested workflows for recurring problems
+- Trigger: User clicks "Workflow Templates" button or needs to create a new incident
+- Progression: Browse templates → Filter by category/severity → Preview template details and steps → Select template → Auto-populate incident form → Execute workflow
+- Success criteria: Users can quickly respond to common incidents using templates without manual configuration
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent
