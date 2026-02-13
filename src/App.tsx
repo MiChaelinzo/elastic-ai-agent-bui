@@ -15,12 +15,14 @@ import { ReasoningLog } from '@/components/ReasoningLog'
 import { WorkflowTemplateCard } from '@/components/WorkflowTemplateCard'
 import { WorkflowTemplateDetail } from '@/components/WorkflowTemplateDetail'
 import { ConfidenceSettings as ConfidenceSettingsComponent } from '@/components/ConfidenceSettings'
+import { NotificationSettingsComponent } from '@/components/NotificationSettings'
 import { ApprovalDialog } from '@/components/ApprovalDialog'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings } from '@/lib/types'
+import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings, NotificationSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
 import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
+import { sendApprovalNotifications, defaultNotificationSettings } from '@/lib/notification-service'
 
 const initialAgents: Agent[] = [
   {
@@ -76,6 +78,10 @@ function App() {
     criticalIncidentThreshold: 90,
     notifyOnLowConfidence: true
   })
+  
+  const [notificationSettings, setNotificationSettings] = useKV<NotificationSettings>('notification-settings', defaultNotificationSettings)
+  
+  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications'>('confidence')
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -222,6 +228,32 @@ function App() {
       
       setIncidentPendingApproval(incidentWithApproval)
       setShowApprovalDialog(true)
+      
+      if (notificationSettings?.enabled) {
+        const approvalUrl = `${window.location.origin}${window.location.pathname}`
+        
+        const notificationResult = await sendApprovalNotifications(notificationSettings, {
+          incident: incidentWithApproval,
+          reason: approvalCheck.reason,
+          lowestConfidence: approvalCheck.lowestConfidence,
+          approvalUrl
+        })
+        
+        if (notificationResult.success) {
+          const channelNames = notificationResult.results.map(r => r.channel).join(' and ')
+          toast.success(`Approval notifications sent via ${channelNames}`, {
+            description: 'Team members have been notified'
+          })
+        } else {
+          const failedChannels = notificationResult.results
+            .filter(r => !r.success)
+            .map(r => `${r.channel}: ${r.message}`)
+          
+          toast.warning('Some notifications failed to send', {
+            description: failedChannels.join(', ')
+          })
+        }
+      }
       
       if (confidenceSettings.notifyOnLowConfidence && approvalCheck.lowestConfidence < confidenceSettings.minConfidenceThreshold) {
         toast.warning('Low confidence detected - Approval required', {
@@ -398,6 +430,9 @@ function App() {
               <Button onClick={() => setShowSettings(true)} variant="outline" size="lg">
                 <Gear size={20} className="mr-2" weight="duotone" />
                 Settings
+                {notificationSettings?.enabled && notificationSettings.channels.length > 0 && (
+                  <span className="ml-2 h-2 w-2 bg-success rounded-full animate-pulse" />
+                )}
               </Button>
               <Button onClick={() => setShowTemplates(true)} variant="outline" size="lg">
                 <Sparkle size={20} className="mr-2" weight="duotone" />
@@ -744,25 +779,47 @@ function App() {
       </Dialog>
 
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Gear size={24} weight="duotone" className="text-primary" />
-              Agent Settings
+              System Settings
             </DialogTitle>
             <DialogDescription>
-              Configure agent behavior and confidence thresholds
+              Configure agent behavior, confidence thresholds, and notification preferences
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
-            {confidenceSettings && (
-              <ConfidenceSettingsComponent
-                settings={confidenceSettings}
-                onChange={(newSettings) => setConfidenceSettings(newSettings)}
-              />
-            )}
-          </div>
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications')} className="py-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="confidence" className="flex items-center gap-2">
+                <ShieldCheck size={18} weight="duotone" />
+                Agent Settings
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center gap-2">
+                <Bell size={18} weight="duotone" />
+                Notifications
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="confidence" className="space-y-4 mt-6">
+              {confidenceSettings && (
+                <ConfidenceSettingsComponent
+                  settings={confidenceSettings}
+                  onChange={(newSettings) => setConfidenceSettings(newSettings)}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="notifications" className="space-y-4 mt-6">
+              {notificationSettings && (
+                <NotificationSettingsComponent
+                  settings={notificationSettings}
+                  onChange={(newSettings) => setNotificationSettings(newSettings)}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
             <Button onClick={() => setShowSettings(false)}>

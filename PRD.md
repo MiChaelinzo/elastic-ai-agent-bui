@@ -34,11 +34,18 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Success criteria: Agents respect threshold settings and correctly request approval when confidence is below threshold or incident is critical
 
 **Human-in-the-Loop Approval System**
-- Functionality: Interactive approval workflow that pauses automated resolution when agent confidence is low or incidents are critical
-- Purpose: Ensures human oversight for risky or uncertain automated actions, building trust in agent decisions
+- Functionality: Interactive approval workflow that pauses automated resolution when agent confidence is low or incidents are critical, with email and Slack notifications
+- Purpose: Ensures human oversight for risky or uncertain automated actions, building trust in agent decisions, and proactively alerts team members when approval is needed
 - Trigger: Agent analysis completes with confidence below threshold or incident has critical severity
-- Progression: Agent completes analysis → System checks confidence against thresholds → If below threshold, mark incident as "pending-approval" → Show approval dialog → User reviews agent reasoning and proposed solution → User approves or rejects → If approved, execute workflow; if rejected, mark as failed
-- Success criteria: Users can review complete agent reasoning, see confidence scores for each agent, and make informed approval decisions
+- Progression: Agent completes analysis → System checks confidence against thresholds → If below threshold, mark incident as "pending-approval" → Send notifications via configured channels (email/Slack) → Show approval dialog → User reviews agent reasoning and proposed solution → User approves or rejects → If approved, execute workflow; if rejected, mark as failed
+- Success criteria: Users can review complete agent reasoning, see confidence scores for each agent, make informed approval decisions, and receive timely notifications when approval is required
+
+**Multi-Channel Notification System**
+- Functionality: Configurable email and Slack notifications that alert team members when incidents require human approval or meet certain criteria
+- Purpose: Ensures timely response to critical incidents by notifying the right people through their preferred communication channels
+- Trigger: Incident enters pending-approval state, low confidence detected, or critical incident created
+- Progression: Open Settings → Navigate to Notifications tab → Enable notifications → Configure email recipients and/or Slack webhook URL → Set notification triggers → Test configuration → Save settings → Receive alerts when conditions are met
+- Success criteria: Team members receive rich, formatted notifications via email and/or Slack with incident details, confidence scores, approval reasons, and direct links to review the incident
 
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
@@ -79,6 +86,10 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - **Missing Data**: Agents explicitly request additional context rather than making assumptions
 - **Approval Timeout**: Pending approval incidents remain in queue until user reviews, preventing unintended auto-execution
 - **Failed Approvals**: Rejected incidents are marked as failed and require manual intervention or re-analysis
+- **Notification Failures**: If email or Slack notification fails, log error in console and show in-app toast notification as fallback
+- **Invalid Notification Configuration**: Validate email addresses and webhook URLs before saving, show clear error messages for invalid configurations
+- **Multiple Recipients**: Support multiple email recipients and send notifications to all configured channels simultaneously
+- **Test Notifications**: Provide test button to verify notification configuration without creating real incidents
 
 ## Design Direction
 
@@ -151,7 +162,11 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - `GitBranch` for workflow orchestration
   - `Terminal` for ES|QL queries
   - `Database` for Elasticsearch search
-  - `Gear` for Elastic Workflows
+  - `Gear` for Elastic Workflows and settings
+  - `Bell` for notifications
+  - `EnvelopeSimple` for email notifications
+  - `ChatCircleDots` for Slack notifications
+  - `PaperPlaneTilt` for sending test notifications
   - `Clock` for timestamps
   - `ArrowRight` for workflow progression
   - `CheckCircle` for completed steps

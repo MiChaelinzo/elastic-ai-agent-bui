@@ -82,3 +82,15 @@ export interface ConfidenceSettings {
   criticalIncidentThreshold: number
   notifyOnLowConfidence: boolean
 }
+
+export type NotificationChannel = 'email' | 'slack'
+
+export interface NotificationSettings {
+  enabled: boolean
+  channels: NotificationChannel[]
+  emailRecipients: string[]
+  slackWebhookUrl: string
+  notifyOnApprovalRequired: boolean
+  notifyOnLowConfidence: boolean
+  notifyOnCriticalIncidents: boolean
+}
