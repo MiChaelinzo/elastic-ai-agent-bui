@@ -1,4 +1,4 @@
-import type { Incident, ReasoningStep, AgentType, ToolType } from './types'
+import type { Incident, ReasoningStep, AgentType, ToolType, ConfidenceSettings } from './types'
 
 export const simulateAgentReasoning = async (
   incident: Incident,
@@ -117,5 +117,51 @@ export const executeWorkflow = async (
   return {
     success: Math.random() > 0.2,
     message: 'Workflow executed successfully. All systems operational.'
+  }
+}
+
+export const checkConfidenceThresholds = (
+  incident: Incident,
+  settings: ConfidenceSettings
+): { requiresApproval: boolean; reason: string; lowestConfidence: number } => {
+  const confidenceScores = incident.reasoningSteps
+    .filter(step => step.confidence > 0)
+    .map(step => step.confidence)
+
+  if (confidenceScores.length === 0) {
+    return {
+      requiresApproval: true,
+      reason: 'No confidence scores available from agents',
+      lowestConfidence: 0
+    }
+  }
+
+  const lowestConfidence = Math.min(...confidenceScores)
+  const threshold = incident.severity === 'critical' 
+    ? settings.criticalIncidentThreshold 
+    : settings.minConfidenceThreshold
+
+  if (lowestConfidence < threshold) {
+    return {
+      requiresApproval: settings.requireApprovalBelowThreshold,
+      reason: `Agent confidence (${lowestConfidence}%) is below threshold (${threshold}%)`,
+      lowestConfidence
+    }
+  }
+
+  if (incident.severity === 'critical') {
+    return {
+      requiresApproval: true,
+      reason: 'Critical severity incidents always require manual approval',
+      lowestConfidence
+    }
+  }
+
+  return {
+    requiresApproval: !settings.autoExecuteAboveThreshold,
+    reason: settings.autoExecuteAboveThreshold 
+      ? 'Confidence exceeds threshold, auto-execution enabled'
+      : 'Manual approval required (auto-execution disabled)',
+    lowestConfidence
   }
 }

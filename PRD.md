@@ -26,6 +26,20 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Browse templates → Filter by category/severity → Preview template details and steps → Select template → Auto-populate incident form → Execute workflow
 - Success criteria: Users can quickly respond to common incidents using templates without manual configuration
 
+**Agent Confidence Threshold Settings**
+- Functionality: Configurable confidence thresholds that determine when agents require human approval before executing automated resolutions
+- Purpose: Provides safety controls and human oversight for critical decisions, balancing automation with reliability
+- Trigger: User clicks "Settings" button to configure thresholds
+- Progression: Open settings → Adjust minimum confidence threshold (50-99%) → Set critical incident threshold → Toggle auto-execution and approval requirements → Save settings
+- Success criteria: Agents respect threshold settings and correctly request approval when confidence is below threshold or incident is critical
+
+**Human-in-the-Loop Approval System**
+- Functionality: Interactive approval workflow that pauses automated resolution when agent confidence is low or incidents are critical
+- Purpose: Ensures human oversight for risky or uncertain automated actions, building trust in agent decisions
+- Trigger: Agent analysis completes with confidence below threshold or incident has critical severity
+- Progression: Agent completes analysis → System checks confidence against thresholds → If below threshold, mark incident as "pending-approval" → Show approval dialog → User reviews agent reasoning and proposed solution → User approves or rejects → If approved, execute workflow; if rejected, mark as failed
+- Success criteria: Users can review complete agent reasoning, see confidence scores for each agent, and make informed approval decisions
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent
@@ -59,9 +73,12 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - **Agent Disagreement**: When Resolver and Verifier agents disagree, escalate to user with both perspectives and confidence scores
 - **Unknown Incident Types**: Detector agent flags novel patterns for user classification and learning
 - **Tool Failures**: Graceful fallback to alternative tools (Search if ES|QL fails, Workflow if API unavailable)
-- **Low Confidence Decisions**: Require human approval for any action with <80% confidence score
+- **Low Confidence Decisions**: Require human approval for any action with confidence below configured threshold (default 80%)
+- **Critical Incidents**: Always require human approval regardless of confidence level for critical severity incidents
 - **Concurrent Incidents**: Priority queue ensures critical incidents are processed first
 - **Missing Data**: Agents explicitly request additional context rather than making assumptions
+- **Approval Timeout**: Pending approval incidents remain in queue until user reviews, preventing unintended auto-execution
+- **Failed Approvals**: Rejected incidents are marked as failed and require manual intervention or re-analysis
 
 ## Design Direction
 

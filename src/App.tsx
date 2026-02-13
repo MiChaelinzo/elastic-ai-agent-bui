@@ -14,10 +14,12 @@ import { IncidentCard } from '@/components/IncidentCard'
 import { ReasoningLog } from '@/components/ReasoningLog'
 import { WorkflowTemplateCard } from '@/components/WorkflowTemplateCard'
 import { WorkflowTemplateDetail } from '@/components/WorkflowTemplateDetail'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple } from '@phosphor-icons/react'
+import { ConfidenceSettings as ConfidenceSettingsComponent } from '@/components/ConfidenceSettings'
+import { ApprovalDialog } from '@/components/ApprovalDialog'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity } from '@/lib/types'
-import { simulateAgentReasoning, executeWorkflow } from '@/lib/agent-engine'
+import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings } from '@/lib/types'
+import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
 import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
 
 const initialAgents: Agent[] = [
@@ -57,12 +59,23 @@ function App() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [showNewIncident, setShowNewIncident] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [workflowProgress, setWorkflowProgress] = useState(0)
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState('')
   const [templateSearch, setTemplateSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [incidentPendingApproval, setIncidentPendingApproval] = useState<Incident | null>(null)
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  
+  const [confidenceSettings, setConfidenceSettings] = useKV<ConfidenceSettings>('confidence-settings', {
+    minConfidenceThreshold: 80,
+    requireApprovalBelowThreshold: true,
+    autoExecuteAboveThreshold: false,
+    criticalIncidentThreshold: 90,
+    notifyOnLowConfidence: true
+  })
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -176,9 +189,59 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    toast.success('All agents have completed analysis', {
-      description: 'Ready to execute automated resolution'
-    })
+    const updatedIncident = (incidents || []).find(inc => inc.id === incident.id)
+    if (!updatedIncident || !confidenceSettings) {
+      setIsProcessing(false)
+      return
+    }
+
+    const approvalCheck = checkConfidenceThresholds(updatedIncident, confidenceSettings)
+    
+    setIncidents(current =>
+      (current || []).map(inc =>
+        inc.id === incident.id
+          ? {
+              ...inc,
+              requiresApproval: approvalCheck.requiresApproval,
+              approvalReason: approvalCheck.reason,
+              lowestConfidence: approvalCheck.lowestConfidence,
+              status: approvalCheck.requiresApproval ? 'pending-approval' as const : inc.status
+            }
+          : inc
+      )
+    )
+
+    if (approvalCheck.requiresApproval) {
+      const incidentWithApproval = {
+        ...updatedIncident,
+        requiresApproval: true,
+        approvalReason: approvalCheck.reason,
+        lowestConfidence: approvalCheck.lowestConfidence,
+        status: 'pending-approval' as const
+      }
+      
+      setIncidentPendingApproval(incidentWithApproval)
+      setShowApprovalDialog(true)
+      
+      if (confidenceSettings.notifyOnLowConfidence && approvalCheck.lowestConfidence < confidenceSettings.minConfidenceThreshold) {
+        toast.warning('Low confidence detected - Approval required', {
+          description: approvalCheck.reason
+        })
+      } else {
+        toast.info('Manual approval required', {
+          description: approvalCheck.reason
+        })
+      }
+    } else if (confidenceSettings.autoExecuteAboveThreshold) {
+      toast.success('High confidence - Auto-executing resolution', {
+        description: `All agents exceeded ${confidenceSettings.minConfidenceThreshold}% confidence threshold`
+      })
+      await executeResolution(updatedIncident)
+    } else {
+      toast.success('All agents have completed analysis', {
+        description: 'Ready to execute automated resolution'
+      })
+    }
     
     setIsProcessing(false)
   }
@@ -230,8 +293,64 @@ function App() {
     setCurrentWorkflowStep('')
   }
 
+  const handleApprove = async () => {
+    if (!incidentPendingApproval) return
+
+    const user = await window.spark.user()
+    
+    setIncidents(current =>
+      (current || []).map(inc =>
+        inc.id === incidentPendingApproval.id
+          ? {
+              ...inc,
+              status: 'in-progress' as const,
+              approvedBy: user?.login || 'unknown',
+              approvedAt: Date.now()
+            }
+          : inc
+      )
+    )
+
+    setShowApprovalDialog(false)
+    
+    toast.success('Incident approved', {
+      description: 'Executing automated resolution workflow...'
+    })
+
+    await executeResolution(incidentPendingApproval)
+    setIncidentPendingApproval(null)
+  }
+
+  const handleReject = async () => {
+    if (!incidentPendingApproval) return
+
+    const user = await window.spark.user()
+    
+    setIncidents(current =>
+      (current || []).map(inc =>
+        inc.id === incidentPendingApproval.id
+          ? {
+              ...inc,
+              status: 'failed' as const,
+              resolution: `Manual approval rejected by ${user?.login || 'user'}`,
+              updatedAt: Date.now()
+            }
+          : inc
+      )
+    )
+
+    setShowApprovalDialog(false)
+    setIncidentPendingApproval(null)
+    
+    toast.error('Incident resolution rejected', {
+      description: 'Automated workflow was not executed'
+    })
+  }
+
   const activeIncidents = (incidents || []).filter(i => i.status === 'in-progress' || i.status === 'new')
+  const pendingApprovalIncidents = (incidents || []).filter(i => i.status === 'pending-approval')
   const resolvedIncidents = (incidents || []).filter(i => i.status === 'resolved')
+  const failedIncidents = (incidents || []).filter(i => i.status === 'failed')
 
   const templatesByCategory = getTemplatesByCategory()
   const categories = ['all', ...Object.keys(templatesByCategory)]
@@ -276,6 +395,10 @@ function App() {
             </div>
             
             <div className="flex items-center gap-3">
+              <Button onClick={() => setShowSettings(true)} variant="outline" size="lg">
+                <Gear size={20} className="mr-2" weight="duotone" />
+                Settings
+              </Button>
               <Button onClick={() => setShowTemplates(true)} variant="outline" size="lg">
                 <Sparkle size={20} className="mr-2" weight="duotone" />
                 Workflow Templates
@@ -297,9 +420,15 @@ function App() {
         </div>
 
         <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="active">
-              Active Incidents ({activeIncidents.length})
+              Active ({activeIncidents.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="relative">
+              Pending Approval ({pendingApprovalIncidents.length})
+              {pendingApprovalIncidents.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
+              )}
             </TabsTrigger>
             <TabsTrigger value="resolved">
               Resolved ({resolvedIncidents.length})
@@ -322,6 +451,33 @@ function App() {
                   onClick={() => setSelectedIncident(incident)}
                 />
               ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="pending" className="space-y-4">
+            {pendingApprovalIncidents.length === 0 ? (
+              <Alert>
+                <CheckCircle size={20} />
+                <AlertDescription>
+                  No incidents awaiting approval.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <Alert className="border-warning">
+                  <ShieldCheck size={20} className="text-warning" />
+                  <AlertDescription>
+                    <strong>{pendingApprovalIncidents.length}</strong> incident{pendingApprovalIncidents.length !== 1 ? 's' : ''} require{pendingApprovalIncidents.length === 1 ? 's' : ''} human approval before automated resolution can proceed.
+                  </AlertDescription>
+                </Alert>
+                {pendingApprovalIncidents.map(incident => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onClick={() => setSelectedIncident(incident)}
+                  />
+                ))}
+              </>
             )}
           </TabsContent>
 
@@ -552,6 +708,7 @@ function App() {
 
                 {selectedIncident.status === 'in-progress' && 
                  selectedIncident.proposedSolution && 
+                 !selectedIncident.requiresApproval &&
                  !isProcessing && (
                   <Button
                     onClick={() => executeResolution(selectedIncident)}
@@ -559,6 +716,19 @@ function App() {
                   >
                     <CheckCircle size={18} className="mr-2" weight="bold" />
                     Execute Resolution
+                  </Button>
+                )}
+
+                {selectedIncident.status === 'pending-approval' && (
+                  <Button
+                    onClick={() => {
+                      setIncidentPendingApproval(selectedIncident)
+                      setShowApprovalDialog(true)
+                    }}
+                    className="bg-warning hover:bg-warning/90 text-warning-foreground"
+                  >
+                    <ShieldCheck size={18} className="mr-2" weight="bold" />
+                    Review & Approve
                   </Button>
                 )}
 
@@ -572,6 +742,47 @@ function App() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gear size={24} weight="duotone" className="text-primary" />
+              Agent Settings
+            </DialogTitle>
+            <DialogDescription>
+              Configure agent behavior and confidence thresholds
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {confidenceSettings && (
+              <ConfidenceSettingsComponent
+                settings={confidenceSettings}
+                onChange={(newSettings) => setConfidenceSettings(newSettings)}
+              />
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setShowSettings(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ApprovalDialog
+        incident={incidentPendingApproval}
+        isOpen={showApprovalDialog}
+        onClose={() => {
+          setShowApprovalDialog(false)
+          setIncidentPendingApproval(null)
+        }}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        isProcessing={isProcessing}
+      />
     </div>
   )
 }

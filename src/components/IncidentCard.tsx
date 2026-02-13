@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, Warning, CheckCircle, XCircle, Sparkle } from '@phosphor-icons/react'
+import { Clock, Warning, CheckCircle, XCircle, Sparkle, ShieldWarning } from '@phosphor-icons/react'
 import type { Incident, IncidentSeverity, IncidentStatus } from '@/lib/types'
 import { getTemplateById } from '@/lib/workflow-templates'
 import { cn } from '@/lib/utils'
@@ -74,6 +74,13 @@ export function IncidentCard({ incident, onClick }: IncidentCardProps) {
             <StatusIcon size={14} className="mr-1" weight="bold" />
             {incident.status.replace('-', ' ')}
           </Badge>
+          
+          {incident.status === 'pending-approval' && incident.lowestConfidence !== undefined && (
+            <Badge variant="outline" className="text-xs bg-warning/10 border-warning">
+              <ShieldWarning size={12} className="mr-1" />
+              {incident.lowestConfidence}% confidence
+            </Badge>
+          )}
           
           {template && (
             <Badge variant="outline" className="text-xs bg-primary/10">

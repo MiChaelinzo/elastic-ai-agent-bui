@@ -42,6 +42,11 @@ export interface Incident {
   proposedSolution?: string
   resolution?: string
   templateId?: string
+  requiresApproval?: boolean
+  approvalReason?: string
+  approvedBy?: string
+  approvedAt?: number
+  lowestConfidence?: number
   metricsImpact?: {
     timeToDetect: number
     timeToResolve: number
@@ -68,4 +73,12 @@ export interface Workflow {
   status: 'running' | 'paused' | 'complete' | 'failed'
   startedAt: number
   completedAt?: number
+}
+
+export interface ConfidenceSettings {
+  minConfidenceThreshold: number
+  requireApprovalBelowThreshold: boolean
+  autoExecuteAboveThreshold: boolean
+  criticalIncidentThreshold: number
+  notifyOnLowConfidence: boolean
 }
