@@ -89,6 +89,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Enable selection mode → Check desired incidents → Floating action bar appears → Choose bulk action → Confirm → Action applies to all selected
 - Success criteria: Multiple incidents can be selected, bulk actions execute correctly, floating UI appears/disappears appropriately, and user can cancel selection
 
+**Real-Time Agent Collaboration Visualization**
+- Functionality: Live canvas-based visualization showing data flow between agents with animated packets traveling along connection paths, agent status indicators, confidence scores, and real-time activity feed
+- Purpose: Makes multi-agent orchestration tangible and transparent by visualizing how agents pass information, collaborate, and build upon each other's work in real-time
+- Trigger: User starts agent analysis on an incident, or clicks "Agent Flow" button in header
+- Progression: Incident processing begins → Detector agent activates → Data packet animates from START to Detector → Detector completes with confidence score → Packet flows to Analyzer → Process continues through all agents → Activity feed shows live reasoning steps → Click "View Detailed Analysis" for full-screen visualization with pipeline status and reasoning timeline
+- Success criteria: Users can see animated data flow between agents, view live activity feed with tool usage and confidence scores, track pipeline progress, understand agent sequence and dependencies, and access detailed modal with complete collaboration analysis
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent
@@ -193,6 +200,9 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - Code syntax highlighter for ES|QL queries using custom styling
   - Real-time log streamer with auto-scroll and line numbers
   - Confidence meter visualization showing agent certainty levels
+  - Canvas-based agent collaboration graph with animated data packets flowing between agents
+  - Live activity feed with timeline visualization showing reasoning steps and tool invocations
+  - Full-screen collaboration visualization modal with pipeline status, reasoning timeline, and flow statistics
   
 - **States**: 
   - Buttons: Default (subtle border), Hover (bright glow), Active (inset shadow), Disabled (reduced opacity with explanation tooltip)
@@ -204,10 +214,10 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - `MagnifyingGlass` for Analyzer agent  
   - `Wrench` for Resolver agent
   - `ShieldCheck` for Verifier agent
-  - `Lightning` for automated actions
-  - `GitBranch` for workflow orchestration
+  - `Lightning` for automated actions and activity feed
+  - `GitBranch` for workflow orchestration and agent collaboration
   - `Terminal` for ES|QL queries
-  - `Database` for Elasticsearch search
+  - `Database` for Elasticsearch search and data packets
   - `Gear` for Elastic Workflows and settings
   - `Bell` for notifications
   - `EnvelopeSimple` for email notifications
@@ -217,6 +227,8 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - `ArrowRight` for workflow progression
   - `CheckCircle` for completed steps
   - `Warning` for alerts
+  - `ChartLine` for analytics and detailed flow visualization
+  - `Brain` for AI reasoning and search tools
   
 - **Spacing**: 
   - Cards: `p-6` internal padding, `gap-4` between content sections

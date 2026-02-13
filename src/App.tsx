@@ -26,6 +26,9 @@ import { IncidentFilters } from '@/components/IncidentFilters'
 import { ExportIncidents } from '@/components/ExportIncidents'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { BulkActions } from '@/components/BulkActions'
+import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
+import { CollaborationVisualization } from '@/components/CollaborationVisualization'
+import { AgentActivityFeed } from '@/components/AgentActivityFeed'
 import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
@@ -107,6 +110,7 @@ function App() {
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [selectedIncidents, setSelectedIncidents] = useState<string[]>([])
   const [selectionMode, setSelectionMode] = useState(false)
+  const [showCollaborationViz, setShowCollaborationViz] = useState(false)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -506,6 +510,23 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {(activeIncidents.length > 0 || (selectedIncident && selectedIncident.reasoningSteps.length > 0)) && (
+                <Button 
+                  onClick={() => {
+                    if (!selectedIncident && activeIncidents.length > 0) {
+                      setSelectedIncident(activeIncidents[0])
+                    }
+                    setShowCollaborationViz(true)
+                  }}
+                  variant="outline" 
+                  size="lg"
+                  className="relative"
+                >
+                  <GitBranch size={20} className="mr-2" weight="duotone" />
+                  Agent Flow
+                  <span className="ml-2 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                </Button>
+              )}
               <Button onClick={() => setShowSettings(true)} variant="outline" size="lg">
                 <Gear size={20} className="mr-2" weight="duotone" />
                 Settings
@@ -546,6 +567,40 @@ function App() {
               <AgentCard key={agent.id} agent={agent} />
             ))}
           </div>
+
+          {selectedIncident && selectedIncident.reasoningSteps.length > 0 && (
+            <div className="animate-slide-in-right space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <GitBranch size={24} weight="duotone" className="text-primary" />
+                  Real-Time Agent Collaboration
+                </h2>
+                <Button 
+                  onClick={() => setShowCollaborationViz(true)}
+                  variant="outline"
+                  size="lg"
+                >
+                  <ChartLine size={20} className="mr-2" weight="duotone" />
+                  View Detailed Analysis
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <AgentCollaborationGraph
+                    agents={agents}
+                    activeAgent={agents.find(a => a.status === 'thinking')?.type}
+                    reasoningSteps={selectedIncident.reasoningSteps}
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <AgentActivityFeed 
+                    reasoningSteps={selectedIncident.reasoningSteps}
+                    maxItems={8}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <IncidentFilters
@@ -1011,6 +1066,13 @@ function App() {
         incidents={incidents || []}
         onClearSelection={handleClearSelection}
         onUpdateIncidents={setIncidents}
+      />
+
+      <CollaborationVisualization
+        isOpen={showCollaborationViz}
+        onClose={() => setShowCollaborationViz(false)}
+        agents={agents}
+        incident={selectedIncident}
       />
     </div>
   )
