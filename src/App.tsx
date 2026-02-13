@@ -16,12 +16,13 @@ import { WorkflowTemplateCard } from '@/components/WorkflowTemplateCard'
 import { WorkflowTemplateDetail } from '@/components/WorkflowTemplateDetail'
 import { ConfidenceSettings as ConfidenceSettingsComponent } from '@/components/ConfidenceSettings'
 import { NotificationSettingsComponent } from '@/components/NotificationSettings'
+import { BackgroundSettingsComponent } from '@/components/BackgroundSettings'
 import { ApprovalDialog } from '@/components/ApprovalDialog'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { MouseTrail } from '@/components/MouseTrail'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings, NotificationSettings } from '@/lib/types'
+import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
 import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
 import { sendApprovalNotifications, defaultNotificationSettings } from '@/lib/notification-service'
@@ -83,7 +84,16 @@ function App() {
   
   const [notificationSettings, setNotificationSettings] = useKV<NotificationSettings>('notification-settings', defaultNotificationSettings)
   
-  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications'>('confidence')
+  const [backgroundSettings, setBackgroundSettings] = useKV<BackgroundSettings>('background-settings', {
+    particleDensity: 100,
+    particleSpeed: 100,
+    nodeSpeed: 100,
+    showGrid: true,
+    showConnections: true,
+    showDataFlows: true
+  })
+  
+  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background'>('confidence')
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -415,7 +425,14 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AnimatedBackground />
+      <AnimatedBackground settings={backgroundSettings || {
+        particleDensity: 100,
+        particleSpeed: 100,
+        nodeSpeed: 100,
+        showGrid: true,
+        showConnections: true,
+        showDataFlows: true
+      }} />
       <MouseTrail />
       
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
@@ -791,12 +808,12 @@ function App() {
               System Settings
             </DialogTitle>
             <DialogDescription>
-              Configure agent behavior, confidence thresholds, and notification preferences
+              Configure agent behavior, confidence thresholds, notification preferences, and visual effects
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications')} className="py-4">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background')} className="py-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="confidence" className="flex items-center gap-2">
                 <ShieldCheck size={18} weight="duotone" />
                 Agent Settings
@@ -804,6 +821,10 @@ function App() {
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell size={18} weight="duotone" />
                 Notifications
+              </TabsTrigger>
+              <TabsTrigger value="background" className="flex items-center gap-2">
+                <PaintBrush size={18} weight="duotone" />
+                Background
               </TabsTrigger>
             </TabsList>
 
@@ -821,6 +842,15 @@ function App() {
                 <NotificationSettingsComponent
                   settings={notificationSettings}
                   onChange={(newSettings) => setNotificationSettings(newSettings)}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="background" className="space-y-4 mt-6">
+              {backgroundSettings && (
+                <BackgroundSettingsComponent
+                  settings={backgroundSettings}
+                  onChange={(newSettings) => setBackgroundSettings(newSettings)}
                 />
               )}
             </TabsContent>

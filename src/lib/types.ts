@@ -94,3 +94,12 @@ export interface NotificationSettings {
   notifyOnLowConfidence: boolean
   notifyOnCriticalIncidents: boolean
 }
+
+export interface BackgroundSettings {
+  particleDensity: number
+  particleSpeed: number
+  nodeSpeed: number
+  showGrid: boolean
+  showConnections: boolean
+  showDataFlows: boolean
+}

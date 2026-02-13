@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react'
+import type { BackgroundSettings } from '@/lib/types'
 
-export function AnimatedBackground() {
+interface AnimatedBackgroundProps {
+  settings: BackgroundSettings
+}
+
+export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -43,8 +48,9 @@ export function AnimatedBackground() {
         }
         this.x = Math.random() * canvas.width
         this.y = Math.random() * canvas.height
-        this.vx = (Math.random() - 0.5) * 0.3
-        this.vy = (Math.random() - 0.5) * 0.3
+        const speedMultiplier = settings.particleSpeed / 100
+        this.vx = (Math.random() - 0.5) * 0.3 * speedMultiplier
+        this.vy = (Math.random() - 0.5) * 0.3 * speedMultiplier
         this.size = Math.random() * 2 + 0.5
         this.opacity = Math.random() * 0.5 + 0.2
         this.hue = Math.random() * 60 + 160
@@ -92,8 +98,9 @@ export function AnimatedBackground() {
         }
         this.x = Math.random() * canvas.width
         this.y = Math.random() * canvas.height
-        this.vx = (Math.random() - 0.5) * 0.15
-        this.vy = (Math.random() - 0.5) * 0.15
+        const speedMultiplier = settings.nodeSpeed / 100
+        this.vx = (Math.random() - 0.5) * 0.15 * speedMultiplier
+        this.vy = (Math.random() - 0.5) * 0.15 * speedMultiplier
         this.size = 4
         this.type = type
         this.pulsePhase = Math.random() * Math.PI * 2
@@ -137,7 +144,9 @@ export function AnimatedBackground() {
     const initParticles = () => {
       if (!canvas) return
       particles = []
-      const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / 15000), 100)
+      const baseParticleCount = Math.min(Math.floor((canvas.width * canvas.height) / 15000), 100)
+      const densityMultiplier = settings.particleDensity / 100
+      const particleCount = Math.floor(baseParticleCount * densityMultiplier)
       for (let i = 0; i < particleCount; i++) {
         particles.push(new Particle())
       }
@@ -155,7 +164,7 @@ export function AnimatedBackground() {
     }
 
     const drawConnections = () => {
-      if (!ctx) return
+      if (!ctx || !settings.showConnections) return
       
       nodes.forEach((node, i) => {
         nodes.slice(i + 1).forEach(otherNode => {
@@ -177,7 +186,7 @@ export function AnimatedBackground() {
     }
 
     const drawDataFlows = (time: number) => {
-      if (!ctx) return
+      if (!ctx || !settings.showDataFlows) return
       
       nodes.forEach((node, i) => {
         if (i % 3 === 0 && nodes[i + 1]) {
@@ -198,7 +207,7 @@ export function AnimatedBackground() {
     }
 
     const drawGrid = () => {
-      if (!ctx) return
+      if (!ctx || !settings.showGrid) return
       
       ctx.strokeStyle = 'rgba(139, 170, 240, 0.03)'
       ctx.lineWidth = 1
@@ -252,7 +261,7 @@ export function AnimatedBackground() {
       window.removeEventListener('resize', resizeCanvas)
       cancelAnimationFrame(animationFrameId)
     }
-  }, [])
+  }, [settings])
 
   return (
     <canvas
