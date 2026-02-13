@@ -68,6 +68,16 @@ import {
   type AnomalyResult
 } from '@/lib/anomaly-detection'
 import { ListBullets } from '@phosphor-icons/react'
+import { MetricCorrelationDashboard } from '@/components/MetricCorrelationDashboard'
+import { MetricCorrelationView } from '@/components/MetricCorrelationView'
+import { MetricCorrelationBadge } from '@/components/MetricCorrelationBadge'
+import {
+  generateMockExternalMetrics,
+  correlateIncidentWithMetrics,
+  analyzeMultiMetricCorrelation,
+  type ExternalMetric,
+  type MetricCorrelationAnalysis
+} from '@/lib/external-metrics'
 
 const initialAgents: Agent[] = [
   {
@@ -156,6 +166,11 @@ function App() {
   const [prioritySettings, setPrioritySettings] = useKV<PriorityQueueSettings>('priority-settings', defaultPrioritySettings)
   
   const { notifications: escalationNotifications, addNotification: addEscalationNotification, dismissNotification: dismissEscalationNotification } = useEscalationNotifications()
+  
+  const [showMetricCorrelation, setShowMetricCorrelation] = useState(false)
+  const [selectedIncidentForMetrics, setSelectedIncidentForMetrics] = useState<Incident | null>(null)
+  const [externalMetrics, setExternalMetrics] = useState<ExternalMetric[]>([])
+  const [metricCorrelationAnalysis, setMetricCorrelationAnalysis] = useState<MetricCorrelationAnalysis | null>(null)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -587,6 +602,15 @@ function App() {
   )
 
   useEffect(() => {
+    if ((incidents || []).length > 0) {
+      const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
+      const latest = Date.now()
+      const metrics = generateMockExternalMetrics(earliest, latest, 300000)
+      setExternalMetrics(metrics)
+    }
+  }, [incidents])
+
+  useEffect(() => {
     if (!prioritySettings?.enableAutoEscalation) return
     
     const checkEscalations = () => {
@@ -685,6 +709,26 @@ function App() {
       setIncidentPendingApproval(incident)
       setShowApprovalDialog(true)
     }
+  }
+
+  const handleShowMetricCorrelation = (incident: Incident) => {
+    if (externalMetrics.length === 0) {
+      toast.error('No external metrics available', {
+        description: 'External metrics are generated from historical incident data'
+      })
+      return
+    }
+    
+    const correlations = correlateIncidentWithMetrics(incident, externalMetrics)
+    const analysis = analyzeMultiMetricCorrelation(incident, correlations)
+    
+    setSelectedIncidentForMetrics(incident)
+    setMetricCorrelationAnalysis(analysis)
+    setShowMetricCorrelation(true)
+    
+    toast.success('Metric correlation analysis complete', {
+      description: `Analyzed ${correlations.length} external metrics`
+    })
   }
 
   return (
@@ -968,6 +1012,15 @@ function App() {
                     selected={selectedIncidents.includes(incident.id)}
                     onSelect={(selected) => handleSelectIncident(incident.id, selected)}
                     selectionMode={selectionMode}
+                    metricCorrelationBadge={
+                      !selectionMode && externalMetrics.length > 0 ? (
+                        <MetricCorrelationBadge
+                          incident={incident}
+                          metrics={externalMetrics}
+                          onClick={() => handleShowMetricCorrelation(incident)}
+                        />
+                      ) : undefined
+                    }
                   />
                 ))
               )}
@@ -990,6 +1043,15 @@ function App() {
                     selected={selectedIncidents.includes(incident.id)}
                     onSelect={(selected) => handleSelectIncident(incident.id, selected)}
                     selectionMode={selectionMode}
+                    metricCorrelationBadge={
+                      !selectionMode && externalMetrics.length > 0 ? (
+                        <MetricCorrelationBadge
+                          incident={incident}
+                          metrics={externalMetrics}
+                          onClick={() => handleShowMetricCorrelation(incident)}
+                        />
+                      ) : undefined
+                    }
                   />
                 ))
               )}
@@ -1019,6 +1081,15 @@ function App() {
                       selected={selectedIncidents.includes(incident.id)}
                       onSelect={(selected) => handleSelectIncident(incident.id, selected)}
                       selectionMode={selectionMode}
+                      metricCorrelationBadge={
+                        !selectionMode && externalMetrics.length > 0 ? (
+                          <MetricCorrelationBadge
+                            incident={incident}
+                            metrics={externalMetrics}
+                            onClick={() => handleShowMetricCorrelation(incident)}
+                          />
+                        ) : undefined
+                      }
                     />
                   ))}
                 </>
@@ -1041,6 +1112,15 @@ function App() {
                     selected={selectedIncidents.includes(incident.id)}
                     onSelect={(selected) => handleSelectIncident(incident.id, selected)}
                     selectionMode={selectionMode}
+                    metricCorrelationBadge={
+                      !selectionMode && externalMetrics.length > 0 ? (
+                        <MetricCorrelationBadge
+                          incident={incident}
+                          metrics={externalMetrics}
+                          onClick={() => handleShowMetricCorrelation(incident)}
+                        />
+                      ) : undefined
+                    }
                   />
                 ))
               )}
@@ -1208,6 +1288,19 @@ function App() {
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {externalMetrics.length > 0 && (
+                  <div>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleShowMetricCorrelation(selectedIncident)}
+                      className="w-full"
+                    >
+                      <ChartLine size={18} className="mr-2" weight="duotone" />
+                      Analyze External Metric Correlations
+                    </Button>
+                  </div>
+                )}
+
                 {selectedIncident.reasoningSteps.length > 0 && (
                   <ReasoningLog steps={selectedIncident.reasoningSteps} maxHeight="500px" />
                 )}
@@ -1423,6 +1516,18 @@ function App() {
         notifications={escalationNotifications}
         onDismiss={dismissEscalationNotification}
         onProcessIncident={handleProcessFromQueue}
+      />
+
+      <MetricCorrelationDashboard
+        isOpen={showMetricCorrelation}
+        onClose={() => {
+          setShowMetricCorrelation(false)
+          setSelectedIncidentForMetrics(null)
+          setMetricCorrelationAnalysis(null)
+        }}
+        incident={selectedIncidentForMetrics}
+        metrics={externalMetrics}
+        analysis={metricCorrelationAnalysis}
       />
     </div>
   )
