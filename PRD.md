@@ -103,6 +103,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: System analyzes historical incidents → Identifies recurring patterns and keywords → Calculates frequency, intervals, peak times/days, and seasonality → Generates predictive insights with confidence scores → Detects anomalies in incident rates → Identifies concerning trends → Provides actionable prevention steps → User clicks insight for details → Reviews pattern analysis and related incidents → Creates preventive action to address predicted issue
 - Success criteria: Users see accurate predictions with confidence scores, understand which patterns are driving predictions, receive actionable prevention recommendations, can create preventive incidents from insights, and benefit from early warning system for emerging issues
 
+**Priority Queue with Auto-Escalation**
+- Functionality: Intelligent queue system that automatically prioritizes incidents based on severity, age, SLA deadlines, and approval status, with automatic escalation for incidents that wait too long and severity upgrades after multiple escalations
+- Purpose: Ensures critical incidents are handled first, prevents incidents from being forgotten, maintains SLA compliance, and automatically escalates urgent issues that need immediate attention
+- Trigger: Automatically active when priority queue settings are enabled; runs continuous background checks every 30 seconds to detect incidents requiring escalation
+- Progression: New incident created → Added to priority queue with calculated priority score → Queue sorted by priority (critical > high > medium > low) → SLA deadline tracked → If incident waits beyond escalation threshold, auto-escalate with priority boost → After 3 escalations, upgrade severity level (e.g., Medium → High) → Toast notification and floating alert appear → User can click "Process Now" from queue or alert → Incident moves to processing
+- Success criteria: Priority queue displays all new and pending-approval incidents sorted by priority, SLA progress bars show time remaining, overdue incidents highlighted in red, escalation notifications appear for time-sensitive incidents, severity automatically upgrades after repeated escalations, and queue metrics dashboard shows real-time statistics
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent
@@ -138,7 +145,10 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - **Tool Failures**: Graceful fallback to alternative tools (Search if ES|QL fails, Workflow if API unavailable)
 - **Low Confidence Decisions**: Require human approval for any action with confidence below configured threshold (default 80%)
 - **Critical Incidents**: Always require human approval regardless of confidence level for critical severity incidents
-- **Concurrent Incidents**: Priority queue ensures critical incidents are processed first
+- **Concurrent Incidents**: Priority queue ensures critical incidents are processed first with automatic prioritization
+- **Queue Overflow**: When multiple critical incidents accumulate, auto-escalation ensures oldest incidents get attention first
+- **SLA Breaches**: Visual alerts and priority boosts for incidents exceeding SLA deadlines to prevent further delays
+- **Escalation Storms**: Escalation notifications are rate-limited to prevent alert fatigue (max 3 visible at once, auto-dismiss after 30s)
 - **Missing Data**: Agents explicitly request additional context rather than making assumptions
 - **Approval Timeout**: Pending approval incidents remain in queue until user reviews, preventing unintended auto-execution
 - **Failed Approvals**: Rejected incidents are marked as failed and require manual intervention or re-analysis
@@ -210,6 +220,10 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - Canvas-based agent collaboration graph with animated data packets flowing between agents
   - Live activity feed with timeline visualization showing reasoning steps and tool invocations
   - Full-screen collaboration visualization modal with pipeline status, reasoning timeline, and flow statistics
+  - Priority queue display with position numbers, SLA progress bars, and escalation badges
+  - Queue metrics dashboard showing critical counts, overdue incidents, and average wait times
+  - Floating escalation alerts with animated entrance/exit and auto-dismiss timers
+  - Priority score calculator with age-based weighting and severity multipliers
   
 - **States**: 
   - Buttons: Default (subtle border), Hover (bright glow), Active (inset shadow), Disabled (reduced opacity with explanation tooltip)
@@ -236,6 +250,11 @@ Key animation moments: Agent activation (scale + glow effect), reasoning step co
   - `Warning` for alerts
   - `ChartLine` for analytics and detailed flow visualization
   - `Brain` for AI reasoning and search tools
+  - `ListBullets` for priority queue
+  - `FireSimple` for critical priority
+  - `ClockCountdown` for SLA breaches
+  - `ArrowUp` for escalations and severity upgrades
+  - `Hourglass` for wait times
   
 - **Spacing**: 
   - Cards: `p-6` internal padding, `gap-4` between content sections

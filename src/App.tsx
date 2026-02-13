@@ -41,6 +41,21 @@ import { generateSampleIncidents } from '@/lib/sample-data'
 import { PredictiveInsights } from '@/components/PredictiveInsights'
 import { PredictiveInsightDetail } from '@/components/PredictiveInsightDetail'
 import { PatternAnalysis } from '@/components/PatternAnalysis'
+import { PriorityQueueDisplay } from '@/components/PriorityQueueDisplay'
+import { QueueMetrics } from '@/components/QueueMetrics'
+import { PriorityQueueSettingsComponent } from '@/components/PriorityQueueSettings'
+import { EscalationAlerts, useEscalationNotifications } from '@/components/EscalationAlerts'
+import { 
+  createQueueItem, 
+  sortQueueByPriority, 
+  shouldEscalateIncident, 
+  escalateIncident,
+  getQueueMetrics,
+  defaultPrioritySettings,
+  type PriorityQueueSettings,
+  type PriorityQueueItem
+} from '@/lib/priority-queue'
+import { ListBullets } from '@phosphor-icons/react'
 
 const initialAgents: Agent[] = [
   {
@@ -108,7 +123,7 @@ function App() {
     showDataFlows: true
   })
   
-  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background'>('confidence')
+  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority'>('confidence')
   
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<IncidentStatus | 'all'>('all')
@@ -120,6 +135,11 @@ function App() {
   const [showPredictiveAnalytics, setShowPredictiveAnalytics] = useState(true)
   const [selectedInsight, setSelectedInsight] = useState<PredictiveInsight | null>(null)
   const [selectedPattern, setSelectedPattern] = useState<IncidentPattern | null>(null)
+  const [showPriorityQueue, setShowPriorityQueue] = useState(true)
+  
+  const [prioritySettings, setPrioritySettings] = useKV<PriorityQueueSettings>('priority-settings', defaultPrioritySettings)
+  
+  const { notifications: escalationNotifications, addNotification: addEscalationNotification, dismissNotification: dismissEscalationNotification } = useEscalationNotifications()
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -507,6 +527,69 @@ function App() {
     [incidents]
   )
 
+  const priorityQueue = useMemo(() => {
+    if (!prioritySettings) return []
+    
+    const queueableIncidents = (incidents || []).filter(
+      inc => inc.status === 'new' || inc.status === 'pending-approval'
+    )
+    
+    const queue = queueableIncidents.map(inc => 
+      createQueueItem(inc, prioritySettings)
+    )
+    
+    return sortQueueByPriority(queue)
+  }, [incidents, prioritySettings])
+
+  const queueMetrics = useMemo(() => 
+    getQueueMetrics(priorityQueue),
+    [priorityQueue]
+  )
+
+  useEffect(() => {
+    if (!prioritySettings?.enableAutoEscalation) return
+    
+    const checkEscalations = () => {
+      priorityQueue.forEach(queueItem => {
+        if (shouldEscalateIncident(queueItem, prioritySettings)) {
+          const { updatedItem, shouldUpgradeSeverity, newSeverity } = escalateIncident(queueItem, prioritySettings)
+          
+          if (shouldUpgradeSeverity && newSeverity) {
+            setIncidents(current =>
+              (current || []).map(inc =>
+                inc.id === queueItem.incident.id
+                  ? { ...inc, severity: newSeverity, updatedAt: Date.now() }
+                  : inc
+              )
+            )
+            
+            addEscalationNotification({
+              incident: { ...queueItem.incident, severity: newSeverity },
+              escalationCount: updatedItem.escalationCount,
+              severityUpgraded: true,
+              newSeverity
+            })
+            
+            toast.warning(`Incident escalated to ${newSeverity.toUpperCase()}`, {
+              description: `${queueItem.incident.title} has been automatically upgraded due to wait time`
+            })
+          } else {
+            addEscalationNotification({
+              incident: queueItem.incident,
+              escalationCount: updatedItem.escalationCount,
+              severityUpgraded: false
+            })
+          }
+        }
+      })
+    }
+    
+    const interval = setInterval(checkEscalations, 30000)
+    checkEscalations()
+    
+    return () => clearInterval(interval)
+  }, [priorityQueue, prioritySettings, setIncidents, addEscalationNotification])
+
   const handleInsightClick = (insight: PredictiveInsight) => {
     setSelectedInsight(insight)
     if (insight.relatedPattern) {
@@ -550,6 +633,20 @@ function App() {
     })
   }
 
+  const handleProcessFromQueue = (incidentId: string) => {
+    const incident = (incidents || []).find(inc => inc.id === incidentId)
+    if (!incident) return
+    
+    setSelectedIncident(incident)
+    
+    if (incident.status === 'new') {
+      processIncident(incident)
+    } else if (incident.status === 'pending-approval') {
+      setIncidentPendingApproval(incident)
+      setShowApprovalDialog(true)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
@@ -577,6 +674,23 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {priorityQueue.length > 0 && (
+                <Button 
+                  onClick={() => setShowPriorityQueue(!showPriorityQueue)}
+                  variant="outline" 
+                  size="lg"
+                  className="relative"
+                >
+                  <ListBullets size={20} className="mr-2" weight="duotone" />
+                  Queue
+                  <Badge variant="secondary" className="ml-2">
+                    {priorityQueue.length}
+                  </Badge>
+                  {queueMetrics.overdueCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse" />
+                  )}
+                </Button>
+              )}
               {predictiveInsights.length > 0 && (
                 <Button 
                   onClick={() => setShowPredictiveAnalytics(!showPredictiveAnalytics)}
@@ -645,6 +759,23 @@ function App() {
       <div className="container mx-auto px-6 py-8 relative z-10">
         <div className="space-y-8">
           <MetricsDashboard incidents={incidents || []} />
+          
+          {showPriorityQueue && priorityQueue.length > 0 && (
+            <div className="animate-slide-in-right space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <ListBullets size={24} weight="duotone" className="text-primary" />
+                  Priority Queue
+                  <Badge variant="secondary">{priorityQueue.length} waiting</Badge>
+                </h2>
+              </div>
+              <QueueMetrics {...queueMetrics} />
+              <PriorityQueueDisplay 
+                queue={priorityQueue}
+                onSelectIncident={handleProcessFromQueue}
+              />
+            </div>
+          )}
           
           {showAnalytics && (
             <div className="animate-slide-in-right">
@@ -1100,8 +1231,8 @@ function App() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background')} className="py-4">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority')} className="py-4">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="confidence" className="flex items-center gap-2">
                 <ShieldCheck size={18} weight="duotone" />
                 Agent Settings
@@ -1109,6 +1240,10 @@ function App() {
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell size={18} weight="duotone" />
                 Notifications
+              </TabsTrigger>
+              <TabsTrigger value="priority" className="flex items-center gap-2">
+                <ListBullets size={18} weight="duotone" />
+                Priority Queue
               </TabsTrigger>
               <TabsTrigger value="background" className="flex items-center gap-2">
                 <PaintBrush size={18} weight="duotone" />
@@ -1130,6 +1265,15 @@ function App() {
                 <NotificationSettingsComponent
                   settings={notificationSettings}
                   onChange={(newSettings) => setNotificationSettings(newSettings)}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="priority" className="space-y-4 mt-6">
+              {prioritySettings && (
+                <PriorityQueueSettingsComponent
+                  settings={prioritySettings}
+                  onChange={(newSettings) => setPrioritySettings(newSettings)}
                 />
               )}
             </TabsContent>
@@ -1188,6 +1332,12 @@ function App() {
           setSelectedPattern(null)
         }}
         onCreatePreventiveAction={handleCreatePreventiveAction}
+      />
+
+      <EscalationAlerts
+        notifications={escalationNotifications}
+        onDismiss={dismissEscalationNotification}
+        onProcessIncident={handleProcessFromQueue}
       />
     </div>
   )
