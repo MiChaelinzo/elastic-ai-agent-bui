@@ -96,6 +96,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Incident processing begins → Detector agent activates → Data packet animates from START to Detector → Detector completes with confidence score → Packet flows to Analyzer → Process continues through all agents → Activity feed shows live reasoning steps → Click "View Detailed Analysis" for full-screen visualization with pipeline status and reasoning timeline
 - Success criteria: Users can see animated data flow between agents, view live activity feed with tool usage and confidence scores, track pipeline progress, understand agent sequence and dependencies, and access detailed modal with complete collaboration analysis
 
+**Predictive Incident Detection**
+- Functionality: AI-powered predictive analytics that analyzes historical incident patterns to forecast future incidents before they occur, detect anomalies in incident rates, identify recurring issues, and track trends over time
+- Purpose: Shifts from reactive to proactive incident management by predicting when incidents are likely to occur based on patterns, enabling preventive action to avoid incidents entirely
+- Trigger: Automatically runs when viewing dashboard with 3+ historical incidents, or user clicks "Predictions" button in header
+- Progression: System analyzes historical incidents → Identifies recurring patterns and keywords → Calculates frequency, intervals, peak times/days, and seasonality → Generates predictive insights with confidence scores → Detects anomalies in incident rates → Identifies concerning trends → Provides actionable prevention steps → User clicks insight for details → Reviews pattern analysis and related incidents → Creates preventive action to address predicted issue
+- Success criteria: Users see accurate predictions with confidence scores, understand which patterns are driving predictions, receive actionable prevention recommendations, can create preventive incidents from insights, and benefit from early warning system for emerging issues
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
 import { AgentCard } from '@/components/AgentCard'
 import { IncidentCard } from '@/components/IncidentCard'
 import { ReasoningLog } from '@/components/ReasoningLog'
@@ -29,12 +30,17 @@ import { BulkActions } from '@/components/BulkActions'
 import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
 import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
 import { sendApprovalNotifications, defaultNotificationSettings } from '@/lib/notification-service'
+import { analyzeIncidentPatterns, generatePredictiveInsights, calculatePredictiveScore, type PredictiveInsight, type IncidentPattern } from '@/lib/predictive-analytics'
+import { generateSampleIncidents } from '@/lib/sample-data'
+import { PredictiveInsights } from '@/components/PredictiveInsights'
+import { PredictiveInsightDetail } from '@/components/PredictiveInsightDetail'
+import { PatternAnalysis } from '@/components/PatternAnalysis'
 
 const initialAgents: Agent[] = [
   {
@@ -111,6 +117,9 @@ function App() {
   const [selectedIncidents, setSelectedIncidents] = useState<string[]>([])
   const [selectionMode, setSelectionMode] = useState(false)
   const [showCollaborationViz, setShowCollaborationViz] = useState(false)
+  const [showPredictiveAnalytics, setShowPredictiveAnalytics] = useState(true)
+  const [selectedInsight, setSelectedInsight] = useState<PredictiveInsight | null>(null)
+  const [selectedPattern, setSelectedPattern] = useState<IncidentPattern | null>(null)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -483,6 +492,64 @@ function App() {
     setSelectedTemplate(null)
   }
 
+  const patterns = useMemo(() => 
+    analyzeIncidentPatterns(incidents || []), 
+    [incidents]
+  )
+
+  const predictiveInsights = useMemo(() => 
+    generatePredictiveInsights(incidents || [], patterns),
+    [incidents, patterns]
+  )
+
+  const predictiveScore = useMemo(() => 
+    calculatePredictiveScore(incidents || []),
+    [incidents]
+  )
+
+  const handleInsightClick = (insight: PredictiveInsight) => {
+    setSelectedInsight(insight)
+    if (insight.relatedPattern) {
+      const pattern = patterns.find(p => p.id === insight.relatedPattern)
+      setSelectedPattern(pattern || null)
+    }
+  }
+
+  const handlePatternClick = (pattern: IncidentPattern) => {
+    setSelectedPattern(pattern)
+    setSelectedInsight(null)
+  }
+
+  const handleCreatePreventiveAction = (insight: PredictiveInsight) => {
+    setNewIncident({
+      title: `Preventive Action: ${insight.title}`,
+      description: `Preventive action based on predictive insight:\n\n${insight.description}\n\nRecommended actions:\n${insight.preventionSteps?.map((step, i) => `${i + 1}. ${step}`).join('\n')}`,
+      severity: insight.severity,
+      templateId: ''
+    })
+    setSelectedInsight(null)
+    setShowNewIncident(true)
+    
+    toast.success('Preventive action created', {
+      description: 'Ready to execute proactive measures'
+    })
+  }
+
+  const relatedIncidentsForInsight = useMemo(() => {
+    if (!selectedInsight) return []
+    return (incidents || []).filter(inc => 
+      selectedInsight.historicalIncidents.includes(inc.id)
+    )
+  }, [selectedInsight, incidents])
+
+  const handleLoadSampleData = () => {
+    const sampleIncidents = generateSampleIncidents()
+    setIncidents(current => [...sampleIncidents, ...(current || [])])
+    toast.success('Sample data loaded', {
+      description: `${sampleIncidents.length} historical incidents added for predictive analysis`
+    })
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
@@ -510,6 +577,23 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {predictiveInsights.length > 0 && (
+                <Button 
+                  onClick={() => setShowPredictiveAnalytics(!showPredictiveAnalytics)}
+                  variant="outline" 
+                  size="lg"
+                  className="relative"
+                >
+                  <Brain size={20} className="mr-2" weight="duotone" />
+                  Predictions
+                  <Badge variant="secondary" className="ml-2">
+                    {predictiveInsights.length}
+                  </Badge>
+                  {predictiveInsights.some(i => i.confidence >= 75 && i.actionable) && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
+                  )}
+                </Button>
+              )}
               {(activeIncidents.length > 0 || (selectedIncident && selectedIncident.reasoningSteps.length > 0)) && (
                 <Button 
                   onClick={() => {
@@ -543,6 +627,12 @@ function App() {
                 {showAnalytics ? 'Hide' : 'Show'} Analytics
               </Button>
               <ExportIncidents incidents={incidents || []} />
+              {(incidents || []).length === 0 && (
+                <Button onClick={handleLoadSampleData} variant="outline" size="lg">
+                  <Brain size={20} className="mr-2" weight="duotone" />
+                  Load Sample Data
+                </Button>
+              )}
               <Button onClick={() => setShowNewIncident(true)} size="lg">
                 <Plus size={20} className="mr-2" weight="bold" />
                 New Incident
@@ -559,6 +649,19 @@ function App() {
           {showAnalytics && (
             <div className="animate-slide-in-right">
               <IncidentAnalytics incidents={incidents || []} />
+            </div>
+          )}
+
+          {showPredictiveAnalytics && (incidents || []).length >= 3 && (
+            <div className="animate-slide-in-right grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PredictiveInsights 
+                insights={predictiveInsights}
+                onInsightClick={handleInsightClick}
+              />
+              <PatternAnalysis 
+                patterns={patterns}
+                onPatternClick={handlePatternClick}
+              />
             </div>
           )}
           
@@ -1073,6 +1176,18 @@ function App() {
         onClose={() => setShowCollaborationViz(false)}
         agents={agents}
         incident={selectedIncident}
+      />
+
+      <PredictiveInsightDetail
+        insight={selectedInsight}
+        pattern={selectedPattern || undefined}
+        relatedIncidents={relatedIncidentsForInsight}
+        isOpen={selectedInsight !== null}
+        onClose={() => {
+          setSelectedInsight(null)
+          setSelectedPattern(null)
+        }}
+        onCreatePreventiveAction={handleCreatePreventiveAction}
       />
     </div>
   )
