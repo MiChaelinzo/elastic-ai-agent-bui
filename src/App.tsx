@@ -30,7 +30,7 @@ import { BulkActions } from '@/components/BulkActions'
 import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -78,6 +78,8 @@ import {
   type ExternalMetric,
   type MetricCorrelationAnalysis
 } from '@/lib/external-metrics'
+import { LiveCorrelationDashboard } from '@/components/LiveCorrelationDashboard'
+import { LiveMetricWidget } from '@/components/LiveMetricWidget'
 
 const initialAgents: Agent[] = [
   {
@@ -171,6 +173,7 @@ function App() {
   const [selectedIncidentForMetrics, setSelectedIncidentForMetrics] = useState<Incident | null>(null)
   const [externalMetrics, setExternalMetrics] = useState<ExternalMetric[]>([])
   const [metricCorrelationAnalysis, setMetricCorrelationAnalysis] = useState<MetricCorrelationAnalysis | null>(null)
+  const [showLiveStreaming, setShowLiveStreaming] = useState(false)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -758,6 +761,18 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {externalMetrics.length > 0 && (
+                <Button 
+                  onClick={() => setShowLiveStreaming(true)}
+                  variant="outline" 
+                  size="lg"
+                  className="relative"
+                >
+                  <Broadcast size={20} className="mr-2" weight="duotone" />
+                  Live Streaming
+                  <span className="ml-2 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                </Button>
+              )}
               {priorityQueue.length > 0 && (
                 <Button 
                   onClick={() => setShowPriorityQueue(!showPriorityQueue)}
@@ -860,6 +875,15 @@ function App() {
       <div className="container mx-auto px-6 py-8 relative z-10">
         <div className="space-y-8">
           <MetricsDashboard incidents={incidents || []} />
+          
+          {externalMetrics.length > 0 && (
+            <LiveMetricWidget
+              metrics={externalMetrics}
+              isStreaming={false}
+              onOpenFullDashboard={() => setShowLiveStreaming(true)}
+              maxMetrics={6}
+            />
+          )}
           
           {showPriorityQueue && priorityQueue.length > 0 && (
             <div className="animate-slide-in-right space-y-4">
@@ -1528,6 +1552,13 @@ function App() {
         incident={selectedIncidentForMetrics}
         metrics={externalMetrics}
         analysis={metricCorrelationAnalysis}
+      />
+
+      <LiveCorrelationDashboard
+        isOpen={showLiveStreaming}
+        onClose={() => setShowLiveStreaming(false)}
+        incident={selectedIncident}
+        metrics={externalMetrics}
       />
     </div>
   )
