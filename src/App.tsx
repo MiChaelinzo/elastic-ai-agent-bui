@@ -30,7 +30,7 @@ import { BulkActions } from '@/components/BulkActions'
 import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -45,6 +45,9 @@ import { PriorityQueueDisplay } from '@/components/PriorityQueueDisplay'
 import { QueueMetrics } from '@/components/QueueMetrics'
 import { PriorityQueueSettingsComponent } from '@/components/PriorityQueueSettings'
 import { EscalationAlerts, useEscalationNotifications } from '@/components/EscalationAlerts'
+import { AnomalyDashboard } from '@/components/AnomalyDashboard'
+import { AnomalyThresholdSettings } from '@/components/AnomalyThresholdSettings'
+import { AnomalyVisualization } from '@/components/AnomalyVisualization'
 import { 
   createQueueItem, 
   sortQueueByPriority, 
@@ -55,6 +58,15 @@ import {
   type PriorityQueueSettings,
   type PriorityQueueItem
 } from '@/lib/priority-queue'
+import {
+  detectAnomalies,
+  convertIncidentsToMetricDataPoints,
+  calculateTimeSeriesMetrics,
+  defaultAnomalyThresholds,
+  type AnomalyThresholds,
+  type AnomalyAlgorithm,
+  type AnomalyResult
+} from '@/lib/anomaly-detection'
 import { ListBullets } from '@phosphor-icons/react'
 
 const initialAgents: Agent[] = [
@@ -123,7 +135,7 @@ function App() {
     showDataFlows: true
   })
   
-  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority'>('confidence')
+  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly'>('confidence')
   
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<IncidentStatus | 'all'>('all')
@@ -131,6 +143,10 @@ function App() {
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [selectedIncidents, setSelectedIncidents] = useState<string[]>([])
   const [selectionMode, setSelectionMode] = useState(false)
+  const [showAnomalyDetection, setShowAnomalyDetection] = useState(false)
+  
+  const [anomalyThresholds, setAnomalyThresholds] = useKV<AnomalyThresholds>('anomaly-thresholds', defaultAnomalyThresholds)
+  const [anomalyAlgorithm, setAnomalyAlgorithm] = useState<AnomalyAlgorithm>('ensemble')
   const [showCollaborationViz, setShowCollaborationViz] = useState(false)
   const [showPredictiveAnalytics, setShowPredictiveAnalytics] = useState(true)
   const [selectedInsight, setSelectedInsight] = useState<PredictiveInsight | null>(null)
@@ -546,6 +562,30 @@ function App() {
     [priorityQueue]
   )
 
+  const anomalyDataPoints = useMemo(() => 
+    convertIncidentsToMetricDataPoints(incidents || [], 3600000),
+    [incidents]
+  )
+
+  const anomalyResults = useMemo(() => {
+    if (!anomalyThresholds || anomalyDataPoints.length === 0) return []
+    return detectAnomalies(anomalyDataPoints, anomalyAlgorithm, anomalyThresholds)
+  }, [anomalyDataPoints, anomalyAlgorithm, anomalyThresholds])
+
+  const timeSeriesMetrics = useMemo(() => {
+    if (anomalyDataPoints.length === 0) return {
+      mean: 0, median: 0, stdDev: 0, variance: 0,
+      min: 0, max: 0, q1: 0, q3: 0, iqr: 0, mad: 0,
+      trend: 'stable' as const, seasonality: false
+    }
+    return calculateTimeSeriesMetrics(anomalyDataPoints.map(p => p.value))
+  }, [anomalyDataPoints])
+
+  const detectedAnomalies = useMemo(() => 
+    anomalyResults.filter(a => a.isAnomaly),
+    [anomalyResults]
+  )
+
   useEffect(() => {
     if (!prioritySettings?.enableAutoEscalation) return
     
@@ -708,6 +748,23 @@ function App() {
                   )}
                 </Button>
               )}
+              {detectedAnomalies.length > 0 && (
+                <Button 
+                  onClick={() => setShowAnomalyDetection(!showAnomalyDetection)}
+                  variant="outline" 
+                  size="lg"
+                  className="relative"
+                >
+                  <Sliders size={20} className="mr-2" weight="duotone" />
+                  Anomalies
+                  <Badge variant="secondary" className="ml-2">
+                    {detectedAnomalies.length}
+                  </Badge>
+                  {detectedAnomalies.some(a => a.severity === 'critical' || a.severity === 'high') && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse" />
+                  )}
+                </Button>
+              )}
               {(activeIncidents.length > 0 || (selectedIncident && selectedIncident.reasoningSteps.length > 0)) && (
                 <Button 
                   onClick={() => {
@@ -792,6 +849,21 @@ function App() {
               <PatternAnalysis 
                 patterns={patterns}
                 onPatternClick={handlePatternClick}
+              />
+            </div>
+          )}
+
+          {showAnomalyDetection && anomalyResults.length > 0 && (
+            <div className="animate-slide-in-right space-y-6">
+              <AnomalyDashboard
+                anomalies={anomalyResults}
+                metrics={timeSeriesMetrics}
+                algorithm={anomalyAlgorithm}
+                onAlgorithmChange={setAnomalyAlgorithm}
+              />
+              <AnomalyVisualization
+                anomalies={anomalyResults}
+                metrics={timeSeriesMetrics}
               />
             </div>
           )}
@@ -1231,8 +1303,8 @@ function App() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority')} className="py-4">
-            <TabsList className="grid w-full grid-cols-4">
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly')} className="py-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="confidence" className="flex items-center gap-2">
                 <ShieldCheck size={18} weight="duotone" />
                 Agent Settings
@@ -1244,6 +1316,10 @@ function App() {
               <TabsTrigger value="priority" className="flex items-center gap-2">
                 <ListBullets size={18} weight="duotone" />
                 Priority Queue
+              </TabsTrigger>
+              <TabsTrigger value="anomaly" className="flex items-center gap-2">
+                <Sliders size={18} weight="duotone" />
+                Anomaly Detection
               </TabsTrigger>
               <TabsTrigger value="background" className="flex items-center gap-2">
                 <PaintBrush size={18} weight="duotone" />
@@ -1274,6 +1350,15 @@ function App() {
                 <PriorityQueueSettingsComponent
                   settings={prioritySettings}
                   onChange={(newSettings) => setPrioritySettings(newSettings)}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="anomaly" className="space-y-4 mt-6">
+              {anomalyThresholds && (
+                <AnomalyThresholdSettings
+                  thresholds={anomalyThresholds}
+                  onChange={(newThresholds) => setAnomalyThresholds(newThresholds)}
                 />
               )}
             </TabsContent>

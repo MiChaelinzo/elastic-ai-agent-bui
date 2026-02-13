@@ -110,6 +110,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: New incident created → Added to priority queue with calculated priority score → Queue sorted by priority (critical > high > medium > low) → SLA deadline tracked → If incident waits beyond escalation threshold, auto-escalate with priority boost → After 3 escalations, upgrade severity level (e.g., Medium → High) → Toast notification and floating alert appear → User can click "Process Now" from queue or alert → Incident moves to processing
 - Success criteria: Priority queue displays all new and pending-approval incidents sorted by priority, SLA progress bars show time remaining, overdue incidents highlighted in red, escalation notifications appear for time-sensitive incidents, severity automatically upgrades after repeated escalations, and queue metrics dashboard shows real-time statistics
 
+**ML-Powered Anomaly Detection with Custom Thresholds**
+- Functionality: Advanced anomaly detection system using multiple machine learning algorithms (Z-Score, IQR, MAD, Isolation Forest, and Ensemble) to identify unusual patterns in incident data with fully customizable sensitivity thresholds for each detection method
+- Purpose: Provides early warning of system issues by detecting anomalies in incident rates, volumes, and patterns before they become critical problems, with fine-grained control over detection sensitivity to balance false positives and false negatives
+- Trigger: Automatically analyzes incident time series data when dashboard loads; user can toggle "Anomalies" button in header to view detailed analysis or adjust detection settings in Settings → Anomaly Detection tab
+- Progression: System converts incidents to time series data points → Calculates baseline metrics (mean, median, std dev, IQR, MAD, trend, seasonality) → Runs selected detection algorithm(s) with configured thresholds → Identifies anomalies with severity levels (low, medium, high, critical) → Calculates confidence scores → Generates suggested actions for each anomaly → User selects sensitivity preset (Low/Medium/High/Critical) or fine-tunes individual algorithm parameters → Views anomalies dashboard with severity distribution → Examines time series visualization with anomaly markers → Reviews detection methods and confidence scores → Takes action on critical/high severity anomalies
+- Success criteria: Accurately detects anomalies in incident patterns using multiple algorithms, provides clear visualizations showing when and where anomalies occurred, displays confidence scores and detection methods for transparency, offers actionable recommendations for each anomaly, allows users to customize sensitivity levels through simple presets or advanced parameter tuning, shows baseline metrics and statistical thresholds for understanding normal vs anomalous behavior, and enables switching between detection algorithms to compare results
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent
@@ -148,6 +155,9 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - **Concurrent Incidents**: Priority queue ensures critical incidents are processed first with automatic prioritization
 - **Queue Overflow**: When multiple critical incidents accumulate, auto-escalation ensures oldest incidents get attention first
 - **SLA Breaches**: Visual alerts and priority boosts for incidents exceeding SLA deadlines to prevent further delays
+- **Insufficient Data for Anomaly Detection**: System requires minimum data points (configurable, default 10) before running anomaly detection to ensure statistical validity
+- **False Positive Anomalies**: Sensitivity presets and threshold customization allow users to tune detection to reduce noise while maintaining coverage
+- **Algorithm Selection**: Ensemble mode combines multiple algorithms for highest accuracy, but users can select specific algorithms for targeted analysis or performance optimization
 - **Escalation Storms**: Escalation notifications are rate-limited to prevent alert fatigue (max 3 visible at once, auto-dismiss after 30s)
 - **Missing Data**: Agents explicitly request additional context rather than making assumptions
 - **Approval Timeout**: Pending approval incidents remain in queue until user reviews, preventing unintended auto-execution
