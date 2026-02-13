@@ -93,7 +93,7 @@ This showcases multi-agent orchestration where different specialized agents (Det
 
 ## Design Direction
 
-The design should evoke a high-tech command center - sophisticated, data-rich, and mission-critical. It should feel like NASA mission control meets modern DevOps, with multiple agents working in concert like an expert team. The interface prioritizes information density and real-time status updates while maintaining clarity through strong visual hierarchy and purposeful use of color to indicate agent states and severity levels.
+The design should evoke a high-tech command center - sophisticated, data-rich, and mission-critical. It should feel like NASA mission control meets modern DevOps, with multiple agents working in concert like an expert team. The interface prioritizes information density and real-time status updates while maintaining clarity through strong visual hierarchy and purposeful use of color to indicate agent states and severity levels. A dynamic animated background creates depth and reinforces the multi-agent orchestration theme with interconnected nodes representing different agent types. An interactive mouse trail provides visual feedback and reinforces the high-tech aesthetic.
 
 ## Color Selection
 
@@ -126,6 +126,10 @@ Typefaces should communicate precision, technical excellence, and real-time data
 Animations should emphasize real-time processing and agent activity without distracting from critical information. Use subtle pulsing for active agents, smooth transitions between workflow states, and satisfying micro-interactions for completed tasks.
 
 Key animation moments: Agent activation (scale + glow effect), reasoning step completion (check animation with green pulse), tool execution (loading spinner with color-coded rings), incident severity changes (attention-grabbing shake for critical), workflow progression (smooth left-to-right timeline advancement).
+
+**Dynamic Background Animation**: Canvas-based particle system with floating nodes representing the four agent types (Detector, Analyzer, Resolver, Verifier). Nodes pulse with agent-specific colors, connect with translucent lines when in proximity, and show animated data flows between agents. A subtle grid pattern provides depth without overwhelming the content. Particles drift slowly to create ambient movement.
+
+**Interactive Mouse Trail**: Smooth cursor trail that leaves a glowing cyan-to-green gradient path with connecting lines between trail points when in proximity. Trail particles fade gradually with shadows and radial gradient effects. Reinforces the interconnected-systems theme and provides satisfying visual feedback during interaction.
 
 ## Component Selection
 

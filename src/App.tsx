@@ -17,6 +17,8 @@ import { WorkflowTemplateDetail } from '@/components/WorkflowTemplateDetail'
 import { ConfidenceSettings as ConfidenceSettingsComponent } from '@/components/ConfidenceSettings'
 import { NotificationSettingsComponent } from '@/components/NotificationSettings'
 import { ApprovalDialog } from '@/components/ApprovalDialog'
+import { AnimatedBackground } from '@/components/AnimatedBackground'
+import { MouseTrail } from '@/components/MouseTrail'
 import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings, NotificationSettings } from '@/lib/types'
@@ -413,6 +415,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <AnimatedBackground />
+      <MouseTrail />
+      
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -447,7 +452,7 @@ function App() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
           {agents.map(agent => (
             <AgentCard key={agent.id} agent={agent} />
