@@ -47,6 +47,48 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Open Settings → Navigate to Notifications tab → Enable notifications → Configure email recipients and/or Slack webhook URL → Set notification triggers → Test configuration → Save settings → Receive alerts when conditions are met
 - Success criteria: Team members receive rich, formatted notifications via email and/or Slack with incident details, confidence scores, approval reasons, and direct links to review the incident
 
+**Real-Time Metrics Dashboard**
+- Functionality: Live overview displaying key performance indicators including total incidents, resolution rates, average resolution time, active incidents, pending approvals, and failed incidents
+- Purpose: Provides at-a-glance visibility into system health and agent performance for informed decision-making
+- Trigger: Automatically updates as incidents change status or new incidents are created
+- Progression: View dashboard → Monitor real-time metrics → Identify trends → Take action on outliers
+- Success criteria: Metrics update in real-time, show accurate counts and calculations, and provide actionable insights
+
+**Incident Analytics & Visualization**
+- Functionality: Interactive charts and graphs showing incident distribution by severity, status breakdown, 7-day timeline trends, and agent performance metrics with confidence levels
+- Purpose: Enables pattern recognition, trend analysis, and data-driven optimization of incident response workflows
+- Trigger: User clicks "Show Analytics" button
+- Progression: Click analytics toggle → View multiple chart types → Analyze severity distribution → Review timeline trends → Assess agent performance
+- Success criteria: Charts render correctly with accurate data, update dynamically as incidents change, and provide meaningful insights
+
+**Advanced Search & Filtering**
+- Functionality: Real-time search across incident titles and descriptions, with dropdown filters for status and severity, plus clear filters button
+- Purpose: Helps users quickly find specific incidents or groups of incidents matching criteria
+- Trigger: User types in search box or selects filter options
+- Progression: Enter search query → Apply status/severity filters → View filtered results → Clear filters to reset
+- Success criteria: Search results update instantly, filters combine correctly, and no incidents match criteria shows appropriate message
+
+**Data Export & Reporting**
+- Functionality: Export incident data in multiple formats (JSON, CSV) and generate comprehensive text reports with summary metrics and detailed incident breakdowns
+- Purpose: Enables external analysis, compliance documentation, and sharing insights with stakeholders
+- Trigger: User clicks "Export" dropdown button
+- Progression: Click export → Select format (JSON/CSV/Report) → File downloads automatically → Open in preferred tool
+- Success criteria: Exported files contain complete and accurate data, proper formatting, and include all relevant fields
+
+**Theme Toggle (Light/Dark Mode)**
+- Functionality: User-controlled theme switcher with persistent preference storage supporting both light and dark modes
+- Purpose: Improves accessibility and user comfort across different lighting conditions and personal preferences
+- Trigger: User clicks theme toggle button in header
+- Progression: Click theme toggle → UI instantly switches between light/dark → Preference saved → Theme persists on reload
+- Success criteria: Theme changes apply globally, all components respect theme, contrast ratios remain accessible, and preference persists
+
+**Bulk Actions for Incidents**
+- Functionality: Select multiple incidents simultaneously and perform batch operations including mark as resolved, archive, or delete with confirmation
+- Purpose: Dramatically improves efficiency when managing large numbers of incidents
+- Trigger: User clicks "Select Multiple" button and checks incident checkboxes
+- Progression: Enable selection mode → Check desired incidents → Floating action bar appears → Choose bulk action → Confirm → Action applies to all selected
+- Success criteria: Multiple incidents can be selected, bulk actions execute correctly, floating UI appears/disappears appropriately, and user can cancel selection
+
 **Interactive Agent Workflow Builder**
 - Functionality: Visual interface to create, configure, and monitor multi-step agent workflows with real-time execution tracking
 - Purpose: Makes complex agent orchestration approachable and transparent

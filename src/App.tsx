@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -20,9 +20,15 @@ import { BackgroundSettingsComponent } from '@/components/BackgroundSettings'
 import { ApprovalDialog } from '@/components/ApprovalDialog'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { MouseTrail } from '@/components/MouseTrail'
+import { MetricsDashboard } from '@/components/MetricsDashboard'
+import { IncidentAnalytics } from '@/components/IncidentAnalytics'
+import { IncidentFilters } from '@/components/IncidentFilters'
+import { ExportIncidents } from '@/components/ExportIncidents'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { BulkActions } from '@/components/BulkActions'
 import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
+import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
 import { workflowTemplates, getTemplatesByCategory, searchTemplates, type WorkflowTemplate } from '@/lib/workflow-templates'
 import { sendApprovalNotifications, defaultNotificationSettings } from '@/lib/notification-service'
@@ -94,6 +100,13 @@ function App() {
   })
   
   const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background'>('confidence')
+  
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState<IncidentStatus | 'all'>('all')
+  const [filterSeverity, setFilterSeverity] = useState<IncidentSeverity | 'all'>('all')
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [selectedIncidents, setSelectedIncidents] = useState<string[]>([])
+  const [selectionMode, setSelectionMode] = useState(false)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -396,6 +409,49 @@ function App() {
   const resolvedIncidents = (incidents || []).filter(i => i.status === 'resolved')
   const failedIncidents = (incidents || []).filter(i => i.status === 'failed')
 
+  const filteredIncidents = useMemo(() => {
+    let filtered = incidents || []
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(i => 
+        i.title.toLowerCase().includes(query) || 
+        i.description.toLowerCase().includes(query)
+      )
+    }
+    
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(i => i.status === filterStatus)
+    }
+    
+    if (filterSeverity !== 'all') {
+      filtered = filtered.filter(i => i.severity === filterSeverity)
+    }
+    
+    return filtered
+  }, [incidents, searchQuery, filterStatus, filterSeverity])
+
+  const hasActiveFilters = searchQuery !== '' || filterStatus !== 'all' || filterSeverity !== 'all'
+
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setFilterStatus('all')
+    setFilterSeverity('all')
+  }
+
+  const handleSelectIncident = (incidentId: string, selected: boolean) => {
+    setSelectedIncidents(current =>
+      selected
+        ? [...current, incidentId]
+        : current.filter(id => id !== incidentId)
+    )
+  }
+
+  const handleClearSelection = () => {
+    setSelectedIncidents([])
+    setSelectionMode(false)
+  }
+
   const templatesByCategory = getTemplatesByCategory()
   const categories = ['all', ...Object.keys(templatesByCategory)]
   
@@ -449,6 +505,7 @@ function App() {
             </div>
             
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <Button onClick={() => setShowSettings(true)} variant="outline" size="lg">
                 <Gear size={20} className="mr-2" weight="duotone" />
                 Settings
@@ -460,6 +517,11 @@ function App() {
                 <Sparkle size={20} className="mr-2" weight="duotone" />
                 Workflow Templates
               </Button>
+              <Button onClick={() => setShowAnalytics(!showAnalytics)} variant="outline" size="lg">
+                <ChartLine size={20} className="mr-2" weight="duotone" />
+                {showAnalytics ? 'Hide' : 'Show'} Analytics
+              </Button>
+              <ExportIncidents incidents={incidents || []} />
               <Button onClick={() => setShowNewIncident(true)} size="lg">
                 <Plus size={20} className="mr-2" weight="bold" />
                 New Incident
@@ -470,92 +532,160 @@ function App() {
       </div>
 
       <div className="container mx-auto px-6 py-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          {agents.map(agent => (
-            <AgentCard key={agent.id} agent={agent} />
-          ))}
-        </div>
+        <div className="space-y-8">
+          <MetricsDashboard incidents={incidents || []} />
+          
+          {showAnalytics && (
+            <div className="animate-slide-in-right">
+              <IncidentAnalytics incidents={incidents || []} />
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {agents.map(agent => (
+              <AgentCard key={agent.id} agent={agent} />
+            ))}
+          </div>
 
-        <Tabs defaultValue="active" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3">
-            <TabsTrigger value="active">
-              Active ({activeIncidents.length})
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="relative">
-              Pending Approval ({pendingApprovalIncidents.length})
-              {pendingApprovalIncidents.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="resolved">
-              Resolved ({resolvedIncidents.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <IncidentFilters
+              onSearch={setSearchQuery}
+              onFilterStatus={setFilterStatus}
+              onFilterSeverity={setFilterSeverity}
+              onClearFilters={handleClearFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
+            
+            <Button
+              variant={selectionMode ? "default" : "outline"}
+              onClick={() => {
+                setSelectionMode(!selectionMode)
+                if (selectionMode) {
+                  setSelectedIncidents([])
+                }
+              }}
+            >
+              {selectionMode ? 'Exit Selection' : 'Select Multiple'}
+            </Button>
+          </div>
 
-          <TabsContent value="active" className="space-y-4">
-            {activeIncidents.length === 0 ? (
-              <Alert>
-                <CheckCircle size={20} />
-                <AlertDescription>
-                  No active incidents. All systems operational.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              activeIncidents.map(incident => (
-                <IncidentCard
-                  key={incident.id}
-                  incident={incident}
-                  onClick={() => setSelectedIncident(incident)}
-                />
-              ))
-            )}
-          </TabsContent>
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList className="grid w-full max-w-3xl grid-cols-4">
+              <TabsTrigger value="all">
+                All ({filteredIncidents.length})
+              </TabsTrigger>
+              <TabsTrigger value="active">
+                Active ({activeIncidents.length})
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="relative">
+                Pending Approval ({pendingApprovalIncidents.length})
+                {pendingApprovalIncidents.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="resolved">
+                Resolved ({resolvedIncidents.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="pending" className="space-y-4">
-            {pendingApprovalIncidents.length === 0 ? (
-              <Alert>
-                <CheckCircle size={20} />
-                <AlertDescription>
-                  No incidents awaiting approval.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <Alert className="border-warning">
-                  <ShieldCheck size={20} className="text-warning" />
+            <TabsContent value="all" className="space-y-4">
+              {filteredIncidents.length === 0 ? (
+                <Alert>
+                  <CheckCircle size={20} />
                   <AlertDescription>
-                    <strong>{pendingApprovalIncidents.length}</strong> incident{pendingApprovalIncidents.length !== 1 ? 's' : ''} require{pendingApprovalIncidents.length === 1 ? 's' : ''} human approval before automated resolution can proceed.
+                    {hasActiveFilters 
+                      ? 'No incidents match your filters.'
+                      : 'No incidents yet. All systems operational.'}
                   </AlertDescription>
                 </Alert>
-                {pendingApprovalIncidents.map(incident => (
+              ) : (
+                filteredIncidents.map(incident => (
                   <IncidentCard
                     key={incident.id}
                     incident={incident}
-                    onClick={() => setSelectedIncident(incident)}
+                    onClick={() => !selectionMode && setSelectedIncident(incident)}
+                    selected={selectedIncidents.includes(incident.id)}
+                    onSelect={(selected) => handleSelectIncident(incident.id, selected)}
+                    selectionMode={selectionMode}
                   />
-                ))}
-              </>
-            )}
-          </TabsContent>
+                ))
+              )}
+            </TabsContent>
 
-          <TabsContent value="resolved" className="space-y-4">
-            {resolvedIncidents.length === 0 ? (
-              <Alert>
-                <AlertDescription>
-                  No resolved incidents yet.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              resolvedIncidents.map(incident => (
-                <IncidentCard
-                  key={incident.id}
-                  incident={incident}
-                  onClick={() => setSelectedIncident(incident)}
-                />
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="active" className="space-y-4">
+              {activeIncidents.length === 0 ? (
+                <Alert>
+                  <CheckCircle size={20} />
+                  <AlertDescription>
+                    No active incidents. All systems operational.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                activeIncidents.map(incident => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onClick={() => !selectionMode && setSelectedIncident(incident)}
+                    selected={selectedIncidents.includes(incident.id)}
+                    onSelect={(selected) => handleSelectIncident(incident.id, selected)}
+                    selectionMode={selectionMode}
+                  />
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="pending" className="space-y-4">
+              {pendingApprovalIncidents.length === 0 ? (
+                <Alert>
+                  <CheckCircle size={20} />
+                  <AlertDescription>
+                    No incidents awaiting approval.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <Alert className="border-warning">
+                    <ShieldCheck size={20} className="text-warning" />
+                    <AlertDescription>
+                      <strong>{pendingApprovalIncidents.length}</strong> incident{pendingApprovalIncidents.length !== 1 ? 's' : ''} require{pendingApprovalIncidents.length === 1 ? 's' : ''} human approval before automated resolution can proceed.
+                    </AlertDescription>
+                  </Alert>
+                  {pendingApprovalIncidents.map(incident => (
+                    <IncidentCard
+                      key={incident.id}
+                      incident={incident}
+                      onClick={() => !selectionMode && setSelectedIncident(incident)}
+                      selected={selectedIncidents.includes(incident.id)}
+                      onSelect={(selected) => handleSelectIncident(incident.id, selected)}
+                      selectionMode={selectionMode}
+                    />
+                  ))}
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="resolved" className="space-y-4">
+              {resolvedIncidents.length === 0 ? (
+                <Alert>
+                  <AlertDescription>
+                    No resolved incidents yet.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                resolvedIncidents.map(incident => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onClick={() => !selectionMode && setSelectedIncident(incident)}
+                    selected={selectedIncidents.includes(incident.id)}
+                    onSelect={(selected) => handleSelectIncident(incident.id, selected)}
+                    selectionMode={selectionMode}
+                  />
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       <Dialog open={showNewIncident} onOpenChange={setShowNewIncident}>
@@ -874,6 +1004,13 @@ function App() {
         onApprove={handleApprove}
         onReject={handleReject}
         isProcessing={isProcessing}
+      />
+
+      <BulkActions
+        selectedIncidents={selectedIncidents}
+        incidents={incidents || []}
+        onClearSelection={handleClearSelection}
+        onUpdateIncidents={setIncidents}
       />
     </div>
   )

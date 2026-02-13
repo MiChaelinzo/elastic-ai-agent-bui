@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Clock, Warning, CheckCircle, XCircle, Sparkle, ShieldWarning } from '@phosphor-icons/react'
 import type { Incident, IncidentSeverity, IncidentStatus } from '@/lib/types'
 import { getTemplateById } from '@/lib/workflow-templates'
@@ -32,11 +33,23 @@ const statusIcons: Record<IncidentStatus, React.ElementType> = {
 interface IncidentCardProps {
   incident: Incident
   onClick?: () => void
+  selected?: boolean
+  onSelect?: (selected: boolean) => void
+  selectionMode?: boolean
 }
 
-export function IncidentCard({ incident, onClick }: IncidentCardProps) {
+export function IncidentCard({ incident, onClick, selected = false, onSelect, selectionMode = false }: IncidentCardProps) {
   const StatusIcon = statusIcons[incident.status]
   const template = incident.templateId ? getTemplateById(incident.templateId) : null
+  
+  const handleClick = (e: React.MouseEvent) => {
+    if (selectionMode && onSelect) {
+      e.stopPropagation()
+      onSelect(!selected)
+    } else if (onClick) {
+      onClick()
+    }
+  }
   
   return (
     <Card
@@ -46,22 +59,35 @@ export function IncidentCard({ incident, onClick }: IncidentCardProps) {
         incident.severity === 'high' && 'border-l-warning',
         incident.severity === 'medium' && 'border-l-blue-500',
         incident.severity === 'low' && 'border-l-muted-foreground',
-        incident.status === 'in-progress' && 'animate-pulse-glow'
+        incident.status === 'in-progress' && 'animate-pulse-glow',
+        selected && 'ring-2 ring-primary'
       )}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-lg truncate">{incident.title}</h3>
-              {template && (
-                <Sparkle size={16} className="text-primary flex-shrink-0" weight="duotone" />
-              )}
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {selectionMode && onSelect && (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={(checked) => {
+                  onSelect(checked === true)
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-lg truncate">{incident.title}</h3>
+                {template && (
+                  <Sparkle size={16} className="text-primary flex-shrink-0" weight="duotone" />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {incident.description}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {incident.description}
-            </p>
           </div>
           
           <Badge className={severityColors[incident.severity]}>
