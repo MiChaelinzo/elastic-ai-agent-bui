@@ -84,6 +84,7 @@ import { LiveCorrelationDashboard } from '@/components/LiveCorrelationDashboard'
 import { LiveMetricWidget } from '@/components/LiveMetricWidget'
 import { ESQLDashboard } from '@/components/ESQLDashboard'
 import { Code } from '@phosphor-icons/react'
+import { getSimulatedCurrentTime } from '@/lib/utils'
 
 const initialAgents: Agent[] = [
   {
@@ -117,11 +118,11 @@ const initialAgents: Agent[] = [
 ]
 
 function getCurrentTimestamp(): number {
-  return Date.now()
+  return getSimulatedCurrentTime()
 }
 
 function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
-  const now = Date.now()
+  const now = getSimulatedCurrentTime()
   const hoursInMs = maxHoursAgo * 3600000
   return now - (Math.random() * hoursInMs)
 }
@@ -629,8 +630,8 @@ function App() {
     if ((incidents || []).length > 0) {
       const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
       const latest = Math.max(...(incidents || []).map(i => i.createdAt))
-      const now = Date.now()
-      const metricsEndTime = Math.min(latest + 86400000, now)
+      const endDate = new Date('2026-02-28T23:59:59Z').getTime()
+      const metricsEndTime = Math.min(latest + 86400000, endDate)
       const metrics = generateMockExternalMetrics(earliest, metricsEndTime, 300000)
       setExternalMetrics(metrics)
     }

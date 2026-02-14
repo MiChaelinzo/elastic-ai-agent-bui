@@ -1,4 +1,5 @@
 import type { Incident, IncidentSeverity } from './types'
+import { getSimulatedCurrentTime } from './utils'
 
 export interface IncidentPattern {
   id: string
@@ -234,7 +235,7 @@ export function detectAnomalies(timeSeries: TimeSeriesPoint[]): AnomalyDetection
 
 function detectTrends(incidents: Incident[]): PredictiveInsight[] {
   const insights: PredictiveInsight[] = []
-  const now = Date.now()
+  const now = getSimulatedCurrentTime()
   const thirtyDaysAgo = now - (30 * 86400000)
   const sixtyDaysAgo = now - (60 * 86400000)
   
@@ -297,7 +298,7 @@ function detectTrends(incidents: Incident[]): PredictiveInsight[] {
 
 function detectRecurringIssues(incidents: Incident[], patterns: IncidentPattern[]): PredictiveInsight[] {
   const insights: PredictiveInsight[] = []
-  const now = Date.now()
+  const now = getSimulatedCurrentTime()
   
   patterns.forEach(pattern => {
     if (pattern.frequency >= 5) {

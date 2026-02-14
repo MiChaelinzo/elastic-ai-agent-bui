@@ -1,4 +1,5 @@
 import type { Incident, IncidentSeverity } from './types'
+import { getSimulatedCurrentTime } from './utils'
 
 export interface PriorityQueueSettings {
   enableAutoPrioritization: boolean
@@ -58,12 +59,12 @@ export function calculateIncidentPriority(
   incident: Incident,
   settings: PriorityQueueSettings,
   escalationCount: number = 0,
-  queuedAt: number = Date.now()
+  queuedAt: number = getSimulatedCurrentTime()
 ): number {
   let priority = SEVERITY_PRIORITY[incident.severity]
   
   if (settings.enableAgeBasedPriority) {
-    const ageMinutes = (Date.now() - queuedAt) / (1000 * 60)
+    const ageMinutes = (getSimulatedCurrentTime() - queuedAt) / (1000 * 60)
     const ageFactor = Math.floor(ageMinutes / 5) * 10
     priority += ageFactor
   }
@@ -87,7 +88,7 @@ export function shouldEscalateIncident(
 ): boolean {
   if (!settings.enableAutoEscalation) return false
   
-  const now = Date.now()
+  const now = getSimulatedCurrentTime()
   const queuedMinutes = (now - queueItem.queuedAt) / (1000 * 60)
   const lastEscalation = queueItem.lastEscalationAt || queueItem.queuedAt
   const minutesSinceLastEscalation = (now - lastEscalation) / (1000 * 60)
@@ -115,7 +116,7 @@ export function escalateIncident(
   const updatedItem: PriorityQueueItem = {
     ...queueItem,
     escalationCount: queueItem.escalationCount + 1,
-    lastEscalationAt: Date.now(),
+    lastEscalationAt: getSimulatedCurrentTime(),
     priority: calculateIncidentPriority(
       queueItem.incident,
       settings,
@@ -155,7 +156,7 @@ export function isIncidentOverdue(
   if (incident.status === 'resolved' || incident.status === 'failed') {
     return false
   }
-  return Date.now() > slaDeadline
+  return getSimulatedCurrentTime() > slaDeadline
 }
 
 export function sortQueueByPriority(queue: PriorityQueueItem[]): PriorityQueueItem[] {
@@ -171,7 +172,7 @@ export function createQueueItem(
   incident: Incident,
   settings: PriorityQueueSettings
 ): PriorityQueueItem {
-  const queuedAt = Date.now()
+  const queuedAt = getSimulatedCurrentTime()
   const slaDeadline = settings.enableSLATracking 
     ? calculateSLADeadline(incident)
     : undefined
@@ -209,7 +210,7 @@ export function getQueueMetrics(queue: PriorityQueueItem[]) {
   const awaitingApproval = queue.filter(item => item.incident.status === 'pending-approval').length
   
   const avgWaitTime = queue.reduce((sum, item) => {
-    return sum + ((Date.now() - item.queuedAt) / (1000 * 60))
+    return sum + ((getSimulatedCurrentTime() - item.queuedAt) / (1000 * 60))
   }, 0) / (totalInQueue || 1)
   
   return {
