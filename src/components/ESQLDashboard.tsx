@@ -14,6 +14,7 @@ import { ESQLQueryBuilder } from '@/components/ESQLQueryBuilder'
 import { ESQLQueryHistory } from '@/components/ESQLQueryHistory'
 import { IndexSuggestionBox } from '@/components/IndexSuggestionBox'
 import { QueryResultAnalyzer } from '@/components/QueryResultAnalyzer'
+import { ESQLChartBuilder } from '@/components/ESQLChartBuilder'
 import { saveQueryToHistory, type ESQLQueryHistoryItem } from '@/lib/esql-utils'
 import { useElasticsearch } from '@/hooks/use-elasticsearch'
 import type { ElasticsearchConnection } from '@/lib/elasticsearch-connection'
@@ -88,6 +89,7 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
   const [currentQuery, setCurrentQuery] = useState('')
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null)
   const [activeTab, setActiveTab] = useState<'builder' | 'history'>('builder')
+  const [resultView, setResultView] = useState<'table' | 'chart'>('table')
 
   const executeQuery = async (query: string): Promise<QueryResult> => {
     if (!elasticsearch.isConnected || !elasticsearch.connection) {
@@ -346,12 +348,28 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
                           </CardDescription>
                         )}
                       </div>
-                      {queryResult.success && queryResult.data && queryResult.data.length > 0 && (
-                        <Button onClick={handleExportResults} variant="outline">
-                          <Download size={18} className="mr-2" />
-                          Export CSV
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {queryResult.success && queryResult.data && queryResult.data.length > 0 && (
+                          <>
+                            <Tabs value={resultView} onValueChange={(v) => setResultView(v as 'table' | 'chart')}>
+                              <TabsList>
+                                <TabsTrigger value="table" className="flex items-center gap-2">
+                                  <TableIcon size={16} weight="duotone" />
+                                  Table
+                                </TabsTrigger>
+                                <TabsTrigger value="chart" className="flex items-center gap-2">
+                                  <ChartBar size={16} weight="duotone" />
+                                  Chart
+                                </TabsTrigger>
+                              </TabsList>
+                            </Tabs>
+                            <Button onClick={handleExportResults} variant="outline">
+                              <Download size={18} className="mr-2" />
+                              Export CSV
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -366,30 +384,39 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
                               className="mb-6"
                             />
                           )}
-                          <ScrollArea className="h-[400px]">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  {queryResult.columns?.map(col => (
-                                    <TableHead key={col} className="font-mono">
-                                      {col}
-                                    </TableHead>
-                                  ))}
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {queryResult.data.map((row, i) => (
-                                  <TableRow key={i}>
+                          
+                          {resultView === 'table' ? (
+                            <ScrollArea className="h-[400px]">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
                                     {queryResult.columns?.map(col => (
-                                      <TableCell key={col} className="font-mono text-sm">
-                                        {formatCellValue(row[col])}
-                                      </TableCell>
+                                      <TableHead key={col} className="font-mono">
+                                        {col}
+                                      </TableHead>
                                     ))}
                                   </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </ScrollArea>
+                                </TableHeader>
+                                <TableBody>
+                                  {queryResult.data.map((row, i) => (
+                                    <TableRow key={i}>
+                                      {queryResult.columns?.map(col => (
+                                        <TableCell key={col} className="font-mono text-sm">
+                                          {formatCellValue(row[col])}
+                                        </TableCell>
+                                      ))}
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </ScrollArea>
+                          ) : (
+                            <ESQLChartBuilder
+                              data={queryResult.data}
+                              columns={queryResult.columns || []}
+                              className="mt-4"
+                            />
+                          )}
                         </>
                       ) : (
                         <Alert>
