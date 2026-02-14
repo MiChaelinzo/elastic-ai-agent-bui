@@ -30,7 +30,8 @@ import { BulkActions } from '@/components/BulkActions'
 import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast } from '@phosphor-icons/react'
+import { ElasticsearchDashboard } from '@/components/ElasticsearchDashboard'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -48,6 +49,7 @@ import { EscalationAlerts, useEscalationNotifications } from '@/components/Escal
 import { AnomalyDashboard } from '@/components/AnomalyDashboard'
 import { AnomalyThresholdSettings } from '@/components/AnomalyThresholdSettings'
 import { AnomalyVisualization } from '@/components/AnomalyVisualization'
+import { useElasticsearch } from '@/hooks/use-elasticsearch'
 import { 
   createQueueItem, 
   sortQueueByPriority, 
@@ -127,6 +129,9 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [incidentPendingApproval, setIncidentPendingApproval] = useState<Incident | null>(null)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [showElasticsearchDashboard, setShowElasticsearchDashboard] = useState(false)
+  
+  const elasticsearch = useElasticsearch()
   
   const [confidenceSettings, setConfidenceSettings] = useKV<ConfidenceSettings>('confidence-settings', {
     minConfidenceThreshold: 80,
@@ -761,6 +766,20 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              <Button 
+                onClick={() => setShowElasticsearchDashboard(true)}
+                variant={elasticsearch.isConnected ? "default" : "outline"}
+                size="lg"
+                className="relative"
+              >
+                <Database size={20} className="mr-2" weight="duotone" />
+                Elasticsearch
+                {elasticsearch.isConnected && (
+                  <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
+                    {elasticsearch.streams.filter(s => s.isActive).length} active
+                  </Badge>
+                )}
+              </Button>
               {externalMetrics.length > 0 && (
                 <Button 
                   onClick={() => setShowLiveStreaming(true)}
@@ -1559,6 +1578,12 @@ function App() {
         onClose={() => setShowLiveStreaming(false)}
         incident={selectedIncident}
         metrics={externalMetrics}
+      />
+
+      <ElasticsearchDashboard
+        isOpen={showElasticsearchDashboard}
+        onClose={() => setShowElasticsearchDashboard(false)}
+        elasticsearch={elasticsearch}
       />
     </div>
   )

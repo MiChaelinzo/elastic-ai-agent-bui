@@ -8,6 +8,14 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 
 ## ✨ Key Features
 
+### 🔌 Production Elasticsearch Integration
+- **Real-Time Data Streaming**: Connect directly to your Elasticsearch cluster for live production data
+- **Flexible Authentication**: Support for API Key, Basic Auth, and Elastic Cloud ID
+- **Configurable Streams**: Create unlimited metric streams from any index pattern
+- **Multiple Aggregations**: avg, sum, max, min, count with custom field mappings
+- **Persistent Configuration**: Connections and streams persist across sessions
+- **See [ELASTICSEARCH_INTEGRATION.md](./ELASTICSEARCH_INTEGRATION.md) for full documentation**
+
 ### Multi-Agent Orchestration
 - **4 Specialized Agents**: Detector, Analyzer, Resolver, and Verifier agents work together in sequence
 - **Transparent Reasoning**: Every agent decision is logged with confidence scores and reasoning steps
