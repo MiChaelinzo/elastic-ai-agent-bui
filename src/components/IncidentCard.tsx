@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Clock, Warning, CheckCircle, XCircle, Sparkle, ShieldWarning } from '@phosphor-icons/react'
 import type { Incident, IncidentSeverity, IncidentStatus } from '@/lib/types'
 import { getTemplateById } from '@/lib/workflow-templates'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 
 const severityColors: Record<IncidentSeverity, string> = {
   critical: 'bg-destructive text-destructive-foreground',
@@ -125,7 +125,7 @@ export function IncidentCard({ incident, onClick, selected = false, onSelect, se
           {metricCorrelationBadge && metricCorrelationBadge}
           
           <span className="text-xs text-muted-foreground ml-auto">
-            {new Date(incident.createdAt).toLocaleString()}
+            {formatDate(incident.createdAt)}
           </span>
         </div>
         

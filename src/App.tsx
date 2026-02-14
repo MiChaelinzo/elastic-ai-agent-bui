@@ -1029,7 +1029,7 @@ function App() {
             </Button>
           </div>
 
-          <Tabs defaultValue="all" className="space-y-6">
+          <Tabs defaultValue="all" className="space-y-3">
             <TabsList className="grid w-full max-w-3xl grid-cols-4">
               <TabsTrigger value="all">
                 All ({filteredIncidents.length})

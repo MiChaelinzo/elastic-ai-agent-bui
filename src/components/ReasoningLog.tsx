@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Clock, Terminal, Database, Gear, ArrowRight } from '@phosphor-icons/react'
 import type { ReasoningStep, ToolType } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 
 const toolIcons: Record<ToolType, React.ElementType> = {
   esql: Terminal,
@@ -65,7 +65,7 @@ export function ReasoningLog({ steps, maxHeight = '400px' }: ReasoningLogProps) 
                     
                     <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1">
                       <Clock size={12} />
-                      {new Date(step.timestamp).toLocaleTimeString()}
+                      {formatDate(step.timestamp).split(',')[1]?.trim() || new Date(step.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
                   

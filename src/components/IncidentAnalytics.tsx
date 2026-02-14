@@ -54,6 +54,7 @@ export function IncidentAnalytics({ incidents }: IncidentAnalyticsProps) {
     const now = Date.now()
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(now - (6 - i) * 24 * 60 * 60 * 1000)
+      date.setFullYear(2026)
       return {
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         created: 0,
