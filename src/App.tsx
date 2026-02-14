@@ -116,6 +116,13 @@ const initialAgents: Agent[] = [
   }
 ]
 
+function getRandomTimestampIn2026(): number {
+  const jan1_2026 = new Date('2026-01-01T00:00:00Z').getTime()
+  const feb28_2026 = new Date('2026-02-28T23:59:59Z').getTime()
+  const timeRange = feb28_2026 - jan1_2026
+  return jan1_2026 + Math.random() * timeRange
+}
+
 function App() {
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
@@ -196,14 +203,16 @@ function App() {
       return
     }
 
+    const timestamp = getRandomTimestampIn2026()
+
     const incident: Incident = {
       id: `incident-${Date.now()}`,
       title: newIncident.title,
       description: newIncident.description,
       severity: newIncident.severity,
       status: 'new',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
       assignedAgents: [],
       reasoningSteps: [],
       templateId: newIncident.templateId || undefined
@@ -246,7 +255,7 @@ function App() {
                 ...inc, 
                 status: 'in-progress' as const,
                 assignedAgents: [...new Set([...inc.assignedAgents, agentType])],
-                updatedAt: Date.now()
+                updatedAt: getRandomTimestampIn2026()
               }
             : inc
         )
@@ -393,7 +402,8 @@ function App() {
     )
 
     if (result.success) {
-      const timeToResolve = Math.floor((Date.now() - incident.createdAt) / 1000)
+      const resolvedAt = getRandomTimestampIn2026()
+      const timeToResolve = Math.floor(Math.abs(resolvedAt - incident.createdAt) / 1000)
       
       setIncidents(current =>
         (current || []).map(inc =>
@@ -402,7 +412,7 @@ function App() {
                 ...inc,
                 status: 'resolved' as const,
                 resolution: result.message,
-                updatedAt: Date.now(),
+                updatedAt: resolvedAt,
                 metricsImpact: {
                   timeToDetect: 12,
                   timeToResolve,
@@ -437,7 +447,7 @@ function App() {
               ...inc,
               status: 'in-progress' as const,
               approvedBy: user?.login || 'unknown',
-              approvedAt: Date.now()
+              approvedAt: getRandomTimestampIn2026()
             }
           : inc
       )
@@ -465,7 +475,7 @@ function App() {
               ...inc,
               status: 'failed' as const,
               resolution: `Manual approval rejected by ${user?.login || 'user'}`,
-              updatedAt: Date.now()
+              updatedAt: getRandomTimestampIn2026()
             }
           : inc
       )
@@ -615,8 +625,10 @@ function App() {
   useEffect(() => {
     if ((incidents || []).length > 0) {
       const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
-      const latest = Date.now()
-      const metrics = generateMockExternalMetrics(earliest, latest, 300000)
+      const latest = Math.max(...(incidents || []).map(i => i.createdAt))
+      const feb28_2026 = new Date('2026-02-28T23:59:59Z').getTime()
+      const metricsEndTime = Math.min(latest + 86400000, feb28_2026)
+      const metrics = generateMockExternalMetrics(earliest, metricsEndTime, 300000)
       setExternalMetrics(metrics)
     }
   }, [incidents])
@@ -633,7 +645,7 @@ function App() {
             setIncidents(current =>
               (current || []).map(inc =>
                 inc.id === queueItem.incident.id
-                  ? { ...inc, severity: newSeverity, updatedAt: Date.now() }
+                  ? { ...inc, severity: newSeverity, updatedAt: getRandomTimestampIn2026() }
                   : inc
               )
             )
