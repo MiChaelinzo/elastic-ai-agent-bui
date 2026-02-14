@@ -116,11 +116,14 @@ const initialAgents: Agent[] = [
   }
 ]
 
-function getRandomTimestampIn2026(): number {
-  const jan1_2026 = new Date('2026-01-01T00:00:00Z').getTime()
-  const feb28_2026 = new Date('2026-02-28T23:59:59Z').getTime()
-  const timeRange = feb28_2026 - jan1_2026
-  return jan1_2026 + Math.random() * timeRange
+function getCurrentTimestamp(): number {
+  return Date.now()
+}
+
+function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
+  const now = Date.now()
+  const hoursInMs = maxHoursAgo * 3600000
+  return now - (Math.random() * hoursInMs)
 }
 
 function App() {
@@ -203,7 +206,7 @@ function App() {
       return
     }
 
-    const timestamp = getRandomTimestampIn2026()
+    const timestamp = getCurrentTimestamp()
 
     const incident: Incident = {
       id: `incident-${Date.now()}`,
@@ -255,7 +258,7 @@ function App() {
                 ...inc, 
                 status: 'in-progress' as const,
                 assignedAgents: [...new Set([...inc.assignedAgents, agentType])],
-                updatedAt: getRandomTimestampIn2026()
+                updatedAt: getCurrentTimestamp()
               }
             : inc
         )
@@ -402,7 +405,7 @@ function App() {
     )
 
     if (result.success) {
-      const resolvedAt = getRandomTimestampIn2026()
+      const resolvedAt = getCurrentTimestamp()
       const timeToResolve = Math.floor(Math.abs(resolvedAt - incident.createdAt) / 1000)
       
       setIncidents(current =>
@@ -447,7 +450,7 @@ function App() {
               ...inc,
               status: 'in-progress' as const,
               approvedBy: user?.login || 'unknown',
-              approvedAt: getRandomTimestampIn2026()
+              approvedAt: getCurrentTimestamp()
             }
           : inc
       )
@@ -475,7 +478,7 @@ function App() {
               ...inc,
               status: 'failed' as const,
               resolution: `Manual approval rejected by ${user?.login || 'user'}`,
-              updatedAt: getRandomTimestampIn2026()
+              updatedAt: getCurrentTimestamp()
             }
           : inc
       )
@@ -626,8 +629,8 @@ function App() {
     if ((incidents || []).length > 0) {
       const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
       const latest = Math.max(...(incidents || []).map(i => i.createdAt))
-      const feb28_2026 = new Date('2026-02-28T23:59:59Z').getTime()
-      const metricsEndTime = Math.min(latest + 86400000, feb28_2026)
+      const now = Date.now()
+      const metricsEndTime = Math.min(latest + 86400000, now)
       const metrics = generateMockExternalMetrics(earliest, metricsEndTime, 300000)
       setExternalMetrics(metrics)
     }
@@ -645,7 +648,7 @@ function App() {
             setIncidents(current =>
               (current || []).map(inc =>
                 inc.id === queueItem.incident.id
-                  ? { ...inc, severity: newSeverity, updatedAt: getRandomTimestampIn2026() }
+                  ? { ...inc, severity: newSeverity, updatedAt: getCurrentTimestamp() }
                   : inc
               )
             )

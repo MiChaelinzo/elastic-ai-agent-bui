@@ -1,9 +1,9 @@
 import type { Incident, IncidentSeverity } from './types'
 
 export function generateSampleIncidents(): Incident[] {
-  const jan1_2026 = new Date('2026-01-01T00:00:00Z').getTime()
-  const feb28_2026 = new Date('2026-02-28T23:59:59Z').getTime()
-  const timeRange = feb28_2026 - jan1_2026
+  const now = Date.now()
+  const thirtyDaysAgo = now - (30 * 24 * 3600000)
+  const timeRange = now - thirtyDaysAgo
   const oneHour = 3600000
   
   const incidents: Incident[] = []
@@ -46,7 +46,7 @@ export function generateSampleIncidents(): Incident[] {
     
     for (let i = 0; i < occurrences; i++) {
       const randomOffset = Math.random() * timeRange
-      const createdAt = jan1_2026 + randomOffset
+      const createdAt = thirtyDaysAgo + randomOffset
       
       const incident: Incident = {
         id: `sample-incident-${templateIndex}-${i}`,
