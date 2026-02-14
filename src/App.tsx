@@ -82,6 +82,8 @@ import {
 } from '@/lib/external-metrics'
 import { LiveCorrelationDashboard } from '@/components/LiveCorrelationDashboard'
 import { LiveMetricWidget } from '@/components/LiveMetricWidget'
+import { ESQLDashboard } from '@/components/ESQLDashboard'
+import { Code } from '@phosphor-icons/react'
 
 const initialAgents: Agent[] = [
   {
@@ -179,6 +181,7 @@ function App() {
   const [externalMetrics, setExternalMetrics] = useState<ExternalMetric[]>([])
   const [metricCorrelationAnalysis, setMetricCorrelationAnalysis] = useState<MetricCorrelationAnalysis | null>(null)
   const [showLiveStreaming, setShowLiveStreaming] = useState(false)
+  const [showESQLDashboard, setShowESQLDashboard] = useState(false)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -766,6 +769,15 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              <Button 
+                onClick={() => setShowESQLDashboard(true)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <Code size={20} className="mr-2" weight="duotone" />
+                ES|QL Console
+              </Button>
               <Button 
                 onClick={() => setShowElasticsearchDashboard(true)}
                 variant={elasticsearch.isConnected ? "default" : "outline"}
@@ -1583,6 +1595,12 @@ function App() {
       <ElasticsearchDashboard
         isOpen={showElasticsearchDashboard}
         onClose={() => setShowElasticsearchDashboard(false)}
+        elasticsearch={elasticsearch}
+      />
+
+      <ESQLDashboard
+        isOpen={showESQLDashboard}
+        onClose={() => setShowESQLDashboard(false)}
         elasticsearch={elasticsearch}
       />
     </div>
