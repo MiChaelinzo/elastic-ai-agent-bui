@@ -98,20 +98,102 @@ export class ElasticsearchConnection {
     return await response.json()
   }
 
-  async esqlQuery(query: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/_query`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify({
-        query
-      })
-    })
+  async esqlQuery(query: string, format: 'json' | 'csv' | 'txt' = 'json'): Promise<any> {
+    const endpoints = [
+      `${this.baseUrl}/_query`,
+      `${this.baseUrl}/_esql/query`,
+      `${this.baseUrl}/_sql`,
+    ]
 
-    if (!response.ok) {
-      throw new Error(`ES|QL query failed: ${response.status} ${response.statusText}`)
+    const requestBody = format === 'json' 
+      ? { query, columnar: false }
+      : { query }
+
+    let lastError: Error | null = null
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            ...this.headers,
+            'Content-Type': 'application/json',
+            'Accept': format === 'json' ? 'application/json' : 'text/plain'
+          },
+          body: JSON.stringify(requestBody)
+        })
+
+        if (response.ok) {
+          const contentType = response.headers.get('content-type')
+          
+          if (contentType?.includes('application/json')) {
+            const data = await response.json()
+            return this.normalizeESQLResponse(data)
+          } else if (format === 'csv' || format === 'txt') {
+            return await response.text()
+          } else {
+            return await response.json()
+          }
+        }
+
+        if (response.status === 404) {
+          lastError = new Error(`Endpoint not found: ${endpoint}`)
+          continue
+        }
+
+        const errorBody = await response.text()
+        let errorMessage = `ES|QL query failed: ${response.status} ${response.statusText}`
+        
+        try {
+          const errorJson = JSON.parse(errorBody)
+          if (errorJson.error?.reason) {
+            errorMessage = errorJson.error.reason
+          } else if (errorJson.error?.root_cause?.[0]?.reason) {
+            errorMessage = errorJson.error.root_cause[0].reason
+          } else if (errorJson.message) {
+            errorMessage = errorJson.message
+          }
+        } catch {
+          if (errorBody) {
+            errorMessage += `: ${errorBody.substring(0, 200)}`
+          }
+        }
+
+        throw new Error(errorMessage)
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+          lastError = new Error(`Network error connecting to ${endpoint}. Check CORS settings.`)
+          continue
+        }
+        throw error
+      }
     }
 
-    return await response.json()
+    throw lastError || new Error('All ES|QL endpoints failed')
+  }
+
+  private normalizeESQLResponse(response: any): any {
+    if (response.columns && response.values) {
+      return {
+        columns: response.columns.map((col: any) => ({
+          name: typeof col === 'string' ? col : col.name,
+          type: typeof col === 'object' ? col.type : 'keyword'
+        })),
+        values: response.values
+      }
+    }
+
+    if (response.rows && response.columns) {
+      return {
+        columns: response.columns.map((col: any) => ({
+          name: typeof col === 'string' ? col : col.name,
+          type: typeof col === 'object' ? col.type : 'keyword'
+        })),
+        values: response.rows
+      }
+    }
+
+    return response
   }
 
   async getIndices(): Promise<string[]> {

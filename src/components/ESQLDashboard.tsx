@@ -12,6 +12,8 @@ import { Code, Table as TableIcon, ChartBar, Download, Check, Warning } from '@p
 import { toast } from 'sonner'
 import { ESQLQueryBuilder } from '@/components/ESQLQueryBuilder'
 import { ESQLQueryHistory } from '@/components/ESQLQueryHistory'
+import { IndexSuggestionBox } from '@/components/IndexSuggestionBox'
+import { QueryResultAnalyzer } from '@/components/QueryResultAnalyzer'
 import { saveQueryToHistory, type ESQLQueryHistoryItem } from '@/lib/esql-utils'
 import { useElasticsearch } from '@/hooks/use-elasticsearch'
 import type { ElasticsearchConnection } from '@/lib/elasticsearch-connection'
@@ -31,6 +33,56 @@ interface QueryResult {
   columns?: string[]
 }
 
+function parseESQLResponse(response: any): { data: any[]; columns: string[] } {
+  if (!response) {
+    return { data: [], columns: [] }
+  }
+
+  if (response.columns && response.values) {
+    const columns = response.columns.map((col: any) => col.name || col)
+    const data = response.values.map((row: any[]) => {
+      const obj: any = {}
+      columns.forEach((col: string, i: number) => {
+        obj[col] = row[i]
+      })
+      return obj
+    })
+    return { data, columns }
+  }
+
+  if (response.rows && response.columns) {
+    const columns = response.columns.map((col: any) => col.name || col)
+    const data = response.rows.map((row: any) => {
+      if (Array.isArray(row)) {
+        const obj: any = {}
+        columns.forEach((col: string, i: number) => {
+          obj[col] = row[i]
+        })
+        return obj
+      }
+      return row
+    })
+    return { data, columns }
+  }
+
+  if (Array.isArray(response)) {
+    const columns = response.length > 0 ? Object.keys(response[0]) : []
+    return { data: response, columns }
+  }
+
+  if (response.hits?.hits) {
+    const data = response.hits.hits.map((hit: any) => ({
+      _id: hit._id,
+      _index: hit._index,
+      ...hit._source
+    }))
+    const columns = data.length > 0 ? Object.keys(data[0]) : []
+    return { data, columns }
+  }
+
+  return { data: [], columns: [] }
+}
+
 export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardProps) {
   const [queryHistory, setQueryHistory] = useKV<ESQLQueryHistoryItem[]>('esql-query-history', [])
   const [currentQuery, setCurrentQuery] = useState('')
@@ -38,7 +90,7 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
   const [activeTab, setActiveTab] = useState<'builder' | 'history'>('builder')
 
   const executeQuery = async (query: string): Promise<QueryResult> => {
-    if (!elasticsearch.isConnected) {
+    if (!elasticsearch.isConnected || !elasticsearch.connection) {
       const result = {
         success: false,
         error: 'Not connected to Elasticsearch. Please configure connection in settings.'
@@ -54,15 +106,17 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
     const startTime = Date.now()
     
     try {
-      const mockData = generateMockESQLResults(query)
-      const executionTime = Date.now() - startTime + Math.floor(Math.random() * 50)
+      const response = await elasticsearch.connection.esqlQuery(query)
+      const executionTime = Date.now() - startTime
+      
+      const { data, columns } = parseESQLResponse(response)
       
       const result: QueryResult = {
         success: true,
         executionTime,
-        rowCount: mockData.length,
-        data: mockData,
-        columns: mockData.length > 0 ? Object.keys(mockData[0]) : []
+        rowCount: data.length,
+        data,
+        columns
       }
 
       const historyItem = saveQueryToHistory(query, {
@@ -74,6 +128,10 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
       setQueryHistory(current => [historyItem, ...(current || [])].slice(0, 100))
       setQueryResult(result)
       
+      toast.success('Query executed successfully', {
+        description: `${data.length} rows returned in ${executionTime}ms`
+      })
+      
       return result
     } catch (error) {
       const result: QueryResult = {
@@ -84,6 +142,10 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
       const historyItem = saveQueryToHistory(query, result)
       setQueryHistory(current => [historyItem, ...(current || [])])
       setQueryResult(result)
+      
+      toast.error('Query execution failed', {
+        description: result.error
+      })
       
       return result
     }
@@ -100,6 +162,14 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
   const handleSelectQuery = (query: string) => {
     setCurrentQuery(query)
     setActiveTab('builder')
+  }
+
+  const handleSelectIndex = (index: string) => {
+    const newQuery = currentQuery.trim() 
+      ? currentQuery.replace(/FROM\s+\S+/i, `FROM ${index}`)
+      : `FROM ${index}\n| LIMIT 100`
+    setCurrentQuery(newQuery)
+    toast.success('Index inserted into query')
   }
 
   const handleExportResults = () => {
@@ -137,13 +207,41 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Code size={28} weight="duotone" className="text-primary" />
-            ES|QL Query Console
-          </DialogTitle>
-          <DialogDescription>
-            Build, execute, and analyze ES|QL queries with full syntax highlighting and history tracking
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Code size={28} weight="duotone" className="text-primary" />
+                ES|QL Query Console
+              </DialogTitle>
+              <DialogDescription>
+                Build, execute, and analyze ES|QL queries with full syntax highlighting and history tracking
+              </DialogDescription>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {elasticsearch.isConnected ? (
+                <>
+                  <Badge variant="default" className="bg-success text-success-foreground">
+                    <span className="h-2 w-2 bg-success-foreground rounded-full animate-pulse mr-2" />
+                    Connected
+                  </Badge>
+                  {elasticsearch.connectionInfo && (
+                    <div className="text-xs text-muted-foreground">
+                      {elasticsearch.connectionInfo.cluster_name} v{elasticsearch.connectionInfo.version?.number}
+                    </div>
+                  )}
+                  {elasticsearch.availableIndices.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      {elasticsearch.availableIndices.length} indices available
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Badge variant="secondary">
+                  Not Connected
+                </Badge>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
@@ -207,10 +305,22 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
             </TabsList>
 
             <TabsContent value="builder" className="flex-1 overflow-auto mt-4 space-y-4">
-              <ESQLQueryBuilder
-                onExecuteQuery={executeQuery}
-                defaultQuery={currentQuery}
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                  <ESQLQueryBuilder
+                    onExecuteQuery={executeQuery}
+                    defaultQuery={currentQuery}
+                  />
+                </div>
+                {elasticsearch.availableIndices.length > 0 && (
+                  <div className="lg:col-span-1">
+                    <IndexSuggestionBox
+                      indices={elasticsearch.availableIndices}
+                      onSelectIndex={handleSelectIndex}
+                    />
+                  </div>
+                )}
+              </div>
 
               {queryResult && (
                 <Card>
@@ -247,30 +357,40 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
                   <CardContent>
                     {queryResult.success ? (
                       queryResult.data && queryResult.data.length > 0 ? (
-                        <ScrollArea className="h-[400px]">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                {queryResult.columns?.map(col => (
-                                  <TableHead key={col} className="font-mono">
-                                    {col}
-                                  </TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {queryResult.data.map((row, i) => (
-                                <TableRow key={i}>
+                        <>
+                          {queryResult.columns && queryResult.executionTime && (
+                            <QueryResultAnalyzer
+                              data={queryResult.data}
+                              columns={queryResult.columns}
+                              executionTime={queryResult.executionTime}
+                              className="mb-6"
+                            />
+                          )}
+                          <ScrollArea className="h-[400px]">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
                                   {queryResult.columns?.map(col => (
-                                    <TableCell key={col} className="font-mono text-sm">
-                                      {formatCellValue(row[col])}
-                                    </TableCell>
+                                    <TableHead key={col} className="font-mono">
+                                      {col}
+                                    </TableHead>
                                   ))}
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </ScrollArea>
+                              </TableHeader>
+                              <TableBody>
+                                {queryResult.data.map((row, i) => (
+                                  <TableRow key={i}>
+                                    {queryResult.columns?.map(col => (
+                                      <TableCell key={col} className="font-mono text-sm">
+                                        {formatCellValue(row[col])}
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </ScrollArea>
+                        </>
                       ) : (
                         <Alert>
                           <AlertDescription>
@@ -305,36 +425,6 @@ export function ESQLDashboard({ isOpen, onClose, elasticsearch }: ESQLDashboardP
       </DialogContent>
     </Dialog>
   )
-}
-
-function generateMockESQLResults(query: string): any[] {
-  const upperQuery = query.toUpperCase()
-  
-  if (upperQuery.includes('STATS') && upperQuery.includes('COUNT')) {
-    return Array.from({ length: 10 }, (_, i) => ({
-      category: `Category ${i + 1}`,
-      count: Math.floor(Math.random() * 1000),
-      avg_value: Math.floor(Math.random() * 100)
-    }))
-  }
-  
-  if (upperQuery.includes('STATS') && upperQuery.includes('AVG')) {
-    return Array.from({ length: 5 }, (_, i) => ({
-      service: `service-${i + 1}`,
-      avg_duration: Math.floor(Math.random() * 500),
-      p95: Math.floor(Math.random() * 800),
-      p99: Math.floor(Math.random() * 1200)
-    }))
-  }
-  
-  return Array.from({ length: 20 }, (_, i) => ({
-    '@timestamp': new Date(Date.now() - i * 60000).toISOString(),
-    level: ['info', 'warn', 'error'][Math.floor(Math.random() * 3)],
-    message: `Log message ${i + 1}`,
-    service: `service-${Math.floor(Math.random() * 5) + 1}`,
-    host: `host-${Math.floor(Math.random() * 10) + 1}`,
-    status_code: [200, 201, 400, 404, 500][Math.floor(Math.random() * 5)]
-  }))
 }
 
 function formatCellValue(value: any): string {
