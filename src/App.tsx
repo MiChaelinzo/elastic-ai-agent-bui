@@ -85,6 +85,7 @@ import { LiveMetricWidget } from '@/components/LiveMetricWidget'
 import { ESQLDashboard } from '@/components/ESQLDashboard'
 import { Code } from '@phosphor-icons/react'
 import { getSimulatedCurrentTime } from '@/lib/utils'
+import { Chatbot } from '@/components/Chatbot'
 
 const initialAgents: Agent[] = [
   {
@@ -756,6 +757,37 @@ function App() {
     toast.success('Metric correlation analysis complete', {
       description: `Analyzed ${correlations.length} external metrics`
     })
+  }
+
+  const handleChatbotRecommendationAction = (action: string) => {
+    switch (action) {
+      case 'open-pending-approvals':
+        const pendingTab = document.querySelector('[value="pending"]')
+        if (pendingTab instanceof HTMLElement) {
+          pendingTab.click()
+        }
+        break
+      case 'process-new-incidents':
+        const activeTab = document.querySelector('[value="active"]')
+        if (activeTab instanceof HTMLElement) {
+          activeTab.click()
+        }
+        break
+      case 'open-anomaly-dashboard':
+        setShowAnomalyDetection(true)
+        break
+      case 'open-analytics':
+        setShowAnalytics(true)
+        break
+      case 'open-esql-console':
+        setShowESQLDashboard(true)
+        break
+      case 'open-workflow-templates':
+        setShowTemplates(true)
+        break
+      default:
+        break
+    }
   }
 
   return (
@@ -1618,6 +1650,11 @@ function App() {
         isOpen={showESQLDashboard}
         onClose={() => setShowESQLDashboard(false)}
         elasticsearch={elasticsearch}
+      />
+
+      <Chatbot
+        incidents={incidents || []}
+        onRecommendationAction={handleChatbotRecommendationAction}
       />
     </div>
   )
