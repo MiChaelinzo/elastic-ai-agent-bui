@@ -90,6 +90,10 @@ import { VoiceCommandButton } from '@/components/VoiceCommandButton'
 import { VoiceCommandPanel } from '@/components/VoiceCommandPanel'
 import { VoiceSettingsDialog } from '@/components/VoiceSettingsDialog'
 import { defaultVoiceSettings, type VoiceRecognitionSettings } from '@/lib/voice-commands'
+import { VoiceBiometricManager } from '@/components/VoiceBiometricManager'
+import { VoiceBiometricVerification } from '@/components/VoiceBiometricVerification'
+import { type VoiceProfile, type BiometricVerificationResult, type BiometricSettings, defaultBiometricSettings } from '@/lib/voice-biometrics'
+import { Fingerprint } from '@phosphor-icons/react'
 
 const initialAgents: Agent[] = [
   {
@@ -202,6 +206,13 @@ function App() {
   const [showVoiceSettings, setShowVoiceSettings] = useState(false)
   
   const [voiceSettings, setVoiceSettings] = useKV<VoiceRecognitionSettings>('voice-settings', defaultVoiceSettings)
+  
+  const [showBiometrics, setShowBiometrics] = useState(false)
+  const [showBiometricVerification, setShowBiometricVerification] = useState(false)
+  const [voiceProfiles, setVoiceProfiles] = useKV<VoiceProfile[]>('voice-profiles', [])
+  const [biometricSettings, setBiometricSettings] = useKV<BiometricSettings>('biometric-settings', defaultBiometricSettings)
+  const [biometricVerified, setBiometricVerified] = useState(false)
+  const [currentVerifiedUser, setCurrentVerifiedUser] = useState<string | null>(null)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -799,6 +810,14 @@ function App() {
   }
 
   const handleVoiceCommand = useCallback((action: string, params?: Record<string, string>) => {
+    if (biometricSettings?.enabled && !biometricVerified && action !== 'verify-voice' && action !== 'open-biometrics' && action !== 'help') {
+      toast.warning('Voice biometric verification required', {
+        description: 'Please verify your identity before executing commands'
+      })
+      setShowBiometricVerification(true)
+      return
+    }
+    
     switch (action) {
       case 'create-incident':
         setShowNewIncident(true)
@@ -916,6 +935,12 @@ function App() {
       case 'help':
         setShowVoiceCommands(true)
         break
+      case 'verify-voice':
+        setShowBiometricVerification(true)
+        break
+      case 'open-biometrics':
+        setShowBiometrics(true)
+        break
       case 'stop-listening':
         break
       default:
@@ -930,8 +955,30 @@ function App() {
     handleReject,
     handleClearFilters,
     handleLoadSampleData,
-    processIncident
+    processIncident,
+    biometricSettings,
+    biometricVerified
   ])
+
+  const handleBiometricVerification = (result: BiometricVerificationResult, updatedProfile?: VoiceProfile) => {
+    if (result.verified) {
+      setBiometricVerified(true)
+      setCurrentVerifiedUser(result.userName || null)
+      
+      if (updatedProfile) {
+        setVoiceProfiles((current) => 
+          (current || []).map(p => p.id === updatedProfile.id ? updatedProfile : p)
+        )
+      }
+      
+      toast.success('Biometric verification successful', {
+        description: `Welcome, ${result.userName}! Voice commands are now enabled.`
+      })
+    } else {
+      setBiometricVerified(false)
+      setCurrentVerifiedUser(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -960,6 +1007,35 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {biometricSettings?.enabled && (
+                <Button
+                  onClick={() => setShowBiometricVerification(true)}
+                  variant={biometricVerified ? "default" : "outline"}
+                  size="lg"
+                  className="relative"
+                >
+                  <Fingerprint size={20} className="mr-2" weight="duotone" />
+                  {biometricVerified ? `Verified: ${currentVerifiedUser}` : 'Verify Identity'}
+                  {biometricVerified && (
+                    <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
+                      <CheckCircle size={14} />
+                    </Badge>
+                  )}
+                </Button>
+              )}
+              <Button
+                onClick={() => setShowBiometrics(true)}
+                variant="outline"
+                size="lg"
+              >
+                <Fingerprint size={20} className="mr-2" weight="duotone" />
+                Voice Biometrics
+                {(voiceProfiles || []).length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {(voiceProfiles || []).length}
+                  </Badge>
+                )}
+              </Button>
               <VoiceCommandButton 
                 settings={voiceSettings || defaultVoiceSettings}
                 onCommand={handleVoiceCommand}
@@ -1869,6 +1945,20 @@ function App() {
           onChange={setVoiceSettings}
         />
       )}
+
+      <Dialog open={showBiometrics} onOpenChange={setShowBiometrics}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <VoiceBiometricManager />
+        </DialogContent>
+      </Dialog>
+
+      <VoiceBiometricVerification
+        isOpen={showBiometricVerification}
+        onClose={() => setShowBiometricVerification(false)}
+        profiles={voiceProfiles || []}
+        onVerificationComplete={handleBiometricVerification}
+        settings={biometricSettings || defaultBiometricSettings}
+      />
     </div>
   )
 }

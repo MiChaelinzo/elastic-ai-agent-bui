@@ -374,6 +374,31 @@ export const voiceCommands: VoiceCommand[] = [
     category: 'system',
     description: 'Stop voice recognition',
     action: 'stop-listening'
+  },
+  {
+    id: 'verify-voice',
+    phrases: [
+      'verify my voice',
+      'verify identity',
+      'authenticate',
+      'biometric verification',
+      'voice authentication'
+    ],
+    category: 'system',
+    description: 'Verify identity with voice biometrics',
+    action: 'verify-voice'
+  },
+  {
+    id: 'open-biometrics',
+    phrases: [
+      'open biometrics',
+      'voice biometrics',
+      'biometric settings',
+      'manage voice profiles'
+    ],
+    category: 'settings',
+    description: 'Open voice biometrics manager',
+    action: 'open-biometrics'
   }
 ]
 
