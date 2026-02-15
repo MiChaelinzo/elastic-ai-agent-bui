@@ -1,12 +1,43 @@
 # Elastic Agent Orchestrator
 
-An intelligent DevOps incident response system powered by multi-agent AI orchestration using Elastic Agent Builder's reasoning models and tools.
+An enterprise-grade intelligent DevOps incident response system powered by multi-agent AI orchestration using Elastic Agent Builder's reasoning models and tools.
 
 ## 🎯 Overview
 
-This application demonstrates how multiple specialized AI agents (Detector, Analyzer, Resolver, Verifier) can collaborate to automatically detect, investigate, and resolve DevOps incidents with human oversight controls.
+This application demonstrates how multiple specialized AI agents (Detector, Analyzer, Resolver, Verifier) can collaborate to automatically detect, investigate, and resolve DevOps incidents with comprehensive human oversight, security controls, and enterprise integrations.
 
 ## ✨ Key Features
+
+### 🤝 Advanced Agent Hierarchy & Team Management **NEW!**
+- **Agent Teams**: Organize agents into specialized teams with supervisors
+- **Role-Based Organization**: Supervisor, Specialist, Executor, and Monitor roles
+- **Live Collaboration Simulation**: Watch agents communicate and coordinate in real-time
+- **Performance Tracking**: Monitor individual agent and team metrics
+- **Team Evaluation**: Get AI-powered insights on team strengths and weaknesses
+- **Dynamic Team Recommendations**: Auto-suggest optimal teams for different incident types
+- **Collaboration Sessions**: Track decisions, insights, and message flows
+- **Synergy Calculation**: Measure how well agents work together
+
+### 🔌 Enterprise Integration Hub **NEW!**
+- **8 Major Integrations**: GitHub, Jira, PagerDuty, Slack, Microsoft Teams, Datadog, New Relic, Grafana
+- **One-Click Setup**: Easy configuration with visual connection testing
+- **Auto-Sync**: Scheduled synchronization with external services
+- **Action Automation**: Auto-create tickets, issues, and alerts
+- **Connection Monitoring**: Real-time status tracking and error handling
+- **Rich Actions**: 5+ suggested actions per integration type
+- **Latency Metrics**: Monitor integration performance
+- **Persistent Configuration**: All settings saved across sessions
+
+### 🛡️ Security & Compliance Dashboard **NEW!**
+- **Compliance Monitoring**: 8+ automated checks for security, privacy, and regulatory compliance
+- **Audit Trail**: Complete activity logging with user tracking and timestamps
+- **Role-Based Access Control**: Admin, Operator, Analyst, and Viewer roles with granular permissions
+- **Security Policies**: Configurable rules for access control, encryption, and authentication
+- **Compliance Scoring**: Real-time compliance percentage with detailed breakdowns
+- **Policy Violations**: Track and alert on security policy breaches
+- **GDPR Ready**: Built-in checks for data privacy regulations
+- **Export Capabilities**: Generate compliance reports for auditors
+- **Sensitive Data Masking**: Auto-mask PII in logs and reports
 
 ### 🔌 Production Elasticsearch Integration
 - **Real-Time Data Streaming**: Connect directly to your Elasticsearch cluster for live production data
@@ -15,6 +46,14 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Multiple Aggregations**: avg, sum, max, min, count with custom field mappings
 - **Persistent Configuration**: Connections and streams persist across sessions
 - **See [ELASTICSEARCH_INTEGRATION.md](./ELASTICSEARCH_INTEGRATION.md) for full documentation**
+
+### 🧠 ES|QL Query Builder & Console
+- **Visual Query Builder**: Build complex ES|QL queries with auto-completion
+- **Syntax Highlighting**: Color-coded query editor for better readability
+- **Query History**: Track and re-run previous queries
+- **Chart Builder**: Visualize results as bar, line, or pie charts
+- **Real-Time Execution**: Run queries against live Elasticsearch data
+- **See [ESQL_INTEGRATION.md](./ESQL_INTEGRATION.md) for ES|QL documentation**
 
 ### Multi-Agent Orchestration
 - **4 Specialized Agents**: Detector, Analyzer, Resolver, and Verifier agents work together in sequence
@@ -36,14 +75,36 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Rich Notifications**: Include incident details, confidence scores, and direct action links
 - **Test Configuration**: Verify notification setup before going live
 
-### 🎤 Voice Commands for Hands-Free Operation
+### 🎤 Voice Commands & Biometrics
 - **40+ Voice Commands**: Control all major functions through natural language
-- **Browser-Based Recognition**: Uses Web Speech API (Chrome, Edge, Safari)
+- **Voice Biometric Authentication**: Secure speaker recognition with voice profiles
+- **Multi-User Support**: Individual voice profiles for team members
 - **Continuous Listening**: Optional always-on mode for hands-free operation
 - **Multi-Language Support**: English, Spanish, French, German, Italian, Japanese, Chinese
-- **Voice Feedback**: Audio confirmations and status updates
-- **Configurable Settings**: Adjust confidence thresholds, language, and behavior
 - **Complete Documentation**: See [VOICE_COMMANDS.md](./VOICE_COMMANDS.md) for full command reference
+
+### 📊 Predictive Analytics & ML-Powered Insights
+- **Incident Pattern Recognition**: Analyze historical data for recurring patterns
+- **Predictive Insights**: AI-powered predictions of future incidents
+- **Trend Forecasting**: Identify emerging issues before they become critical
+- **Proactive Prevention**: Generate preventive action plans based on predictions
+- **Confidence Scoring**: Each prediction rated for reliability
+- **Pattern Categories**: Time-based, user-based, severity escalation patterns
+
+### ⚡ Priority Queue & Auto-Escalation
+- **Smart Prioritization**: Dynamic incident ranking based on multiple factors
+- **Auto-Escalation**: Automatically upgrade severity for aging incidents
+- **SLA Tracking**: Monitor queue wait times and overdue items
+- **Queue Metrics**: Real-time statistics on queue health
+- **Configurable Rules**: Customize priority weights and escalation timing
+
+### 🎯 Anomaly Detection & Correlation
+- **ML-Powered Detection**: Statistical and machine learning algorithms
+- **Multiple Algorithms**: Z-score, IQR, MAD, Isolation Forest, DBSCAN
+- **External Metrics**: Correlate incidents with CPU, memory, network data
+- **Live Streaming**: Real-time metric correlation analysis
+- **Custom Thresholds**: Configure sensitivity for each algorithm
+- **Trend Analysis**: Identify seasonality and trends in incident data
 
 ### Real-Time Metrics Dashboard
 - **Live KPIs**: Track total incidents, resolution rates, active alerts, and more
@@ -80,6 +141,12 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Interactive Trail**: Mouse cursor trail with connecting lines
 - **Configurable Settings**: Adjust particle density, speed, and visual effects
 
+### 💬 AI Chatbot with Multi-Modal Support
+- **Contextual Recommendations**: AI-powered suggestions based on system state
+- **Multi-Modal Input**: Upload images, files, and videos for analysis
+- **Incident Context**: Chatbot understands current incidents and metrics
+- **Quick Actions**: Execute commands directly from chat interface
+
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 19 + TypeScript
@@ -89,6 +156,8 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Icons**: Phosphor Icons
 - **State**: React hooks + Spark KV for persistence
 - **AI**: Spark LLM integration for agent reasoning
+- **Voice**: Web Speech API for voice recognition
+- **Security**: Role-based access control with audit logging
 
 ## 🚀 Getting Started
 
@@ -97,13 +166,25 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 3. Review reasoning logs and confidence scores
 4. Approve or reject proposed solutions
 5. Monitor resolution progress and metrics
+6. Connect integrations for automated external actions
+7. Review compliance dashboard for security posture
 
-## 📊 Agent Types
+## 👥 Agent Types & Roles
 
+### Base Agents
 - **Detector**: Identifies and classifies incidents using ES|QL queries
 - **Analyzer**: Investigates root causes with Elasticsearch Search
 - **Resolver**: Proposes automated solutions via Elastic Workflows
 - **Verifier**: Validates solutions before execution
+
+### Agent Roles (New!)
+- **Supervisor**: Coordinates team activities and makes final decisions
+- **Specialist**: Focuses on specific technical domains
+- **Executor**: Implements solutions and workflows
+- **Monitor**: Tracks system health and anomalies
+
+### Agent Capabilities
+- Detection, Analysis, Resolution, Verification, Coordination, Learning
 
 ## ⚙️ Configuration
 
@@ -112,6 +193,11 @@ Access the Settings dialog to configure:
 - Approval requirements
 - Email and Slack notifications
 - Background animation settings
+- Priority queue rules
+- Anomaly detection sensitivity
+- Voice recognition preferences
+- Biometric authentication
+- Security policies
 
 ## 📈 Metrics & Analytics
 
@@ -122,6 +208,21 @@ The dashboard tracks:
 - Agent performance and confidence
 - Severity and status distributions
 - 7-day trend analysis
+- Predictive incident forecasts
+- Queue metrics and SLA compliance
+- Anomaly detection results
+- Integration activity
+- Compliance scores
+
+## 🔐 Security Features
+
+- **Audit Logging**: Every action tracked with user, timestamp, and details
+- **Role-Based Access**: Granular permissions for different user roles
+- **Compliance Checks**: Automated security and privacy validation
+- **Data Encryption**: Sensitive data encrypted at rest
+- **Policy Enforcement**: Configurable security rules and violations tracking
+- **Biometric Auth**: Voice-based user verification
+- **Data Masking**: PII automatically masked in logs
 
 ## 🎨 Design Highlights
 
@@ -131,6 +232,14 @@ The dashboard tracks:
 - Smooth animations and micro-interactions
 - Responsive mobile-first design
 
+## 📦 New Components
+
+- `AgentHierarchyDashboard` - Team management and collaboration visualization
+- `IntegrationHub` - External service connections
+- `SecurityComplianceDashboard` - Security and compliance monitoring
+- Plus 50+ existing components for incidents, analytics, and workflows
+
 ## 📄 License
 
 The Spark Template files and resources from GitHub are licensed under the terms of the MIT license, Copyright GitHub, Inc.
+

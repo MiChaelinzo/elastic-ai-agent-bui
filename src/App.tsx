@@ -93,7 +93,15 @@ import { defaultVoiceSettings, type VoiceRecognitionSettings } from '@/lib/voice
 import { VoiceBiometricManager } from '@/components/VoiceBiometricManager'
 import { VoiceBiometricVerification } from '@/components/VoiceBiometricVerification'
 import { type VoiceProfile, type BiometricVerificationResult, type BiometricSettings, defaultBiometricSettings } from '@/lib/voice-biometrics'
-import { Fingerprint } from '@phosphor-icons/react'
+import { Fingerprint, Plugs, Users as UsersIcon } from '@phosphor-icons/react'
+import { AgentHierarchyDashboard } from '@/components/AgentHierarchyDashboard'
+import { IntegrationHub } from '@/components/IntegrationHub'
+import { SecurityComplianceDashboard } from '@/components/SecurityComplianceDashboard'
+import type { EnhancedAgent, AgentTeam } from '@/lib/agent-hierarchy'
+import { createEnhancedAgent, createAgentTeam } from '@/lib/agent-hierarchy'
+import type { Integration } from '@/lib/integration-hub'
+import type { AuditLog, UserRole } from '@/lib/security-compliance'
+import { createAuditLog } from '@/lib/security-compliance'
 
 const initialAgents: Agent[] = [
   {
@@ -214,6 +222,14 @@ function App() {
   const [biometricVerified, setBiometricVerified] = useState(false)
   const [currentVerifiedUser, setCurrentVerifiedUser] = useState<string | null>(null)
   
+  const [showAgentHierarchy, setShowAgentHierarchy] = useState(false)
+  const [showIntegrationHub, setShowIntegrationHub] = useState(false)
+  const [showSecurityDashboard, setShowSecurityDashboard] = useState(false)
+  const [integrations, setIntegrations] = useKV<Integration[]>('integrations', [])
+  const [auditLogs, setAuditLogs] = useKV<AuditLog[]>('audit-logs', [])
+  const [userRole, setUserRole] = useState<UserRole>('operator')
+  const [agentTeams, setAgentTeams] = useKV<AgentTeam[]>('agent-teams', [])
+  
   const [newIncident, setNewIncident] = useState({
     title: '',
     description: '',
@@ -221,13 +237,14 @@ function App() {
     templateId: ''
   })
 
-  const createIncident = () => {
+  const createIncident = async () => {
     if (!newIncident.title || !newIncident.description) {
       toast.error('Please fill in all fields')
       return
     }
 
     const timestamp = getCurrentTimestamp()
+    const user = await window.spark.user()
 
     const incident: Incident = {
       id: `incident-${Date.now()}`,
@@ -243,6 +260,19 @@ function App() {
     }
 
     setIncidents(current => [incident, ...(current || [])])
+    
+    const auditLog = createAuditLog(
+      user?.id?.toString() || 'system',
+      user?.login || 'System',
+      'incident.created',
+      'incident',
+      incident.id,
+      `Created new ${incident.severity} severity incident: ${incident.title}`,
+      true,
+      { severity: incident.severity, templateId: incident.templateId }
+    )
+    setAuditLogs(current => [auditLog, ...(current || [])])
+    
     setShowNewIncident(false)
     setNewIncident({ title: '', description: '', severity: 'medium', templateId: '' })
     
@@ -647,6 +677,39 @@ function App() {
   )
 
   useEffect(() => {
+    if ((agentTeams || []).length === 0 && agents.length > 0) {
+      const enhancedAgents = agents.map((agent, idx) => 
+        createEnhancedAgent(
+          agent,
+          idx === 0 ? 'supervisor' : 'specialist',
+          idx === 0 ? ['coordination', 'detection', 'analysis'] : 
+          idx === 1 ? ['analysis', 'detection'] :
+          idx === 2 ? ['resolution', 'analysis'] :
+          ['verification', 'analysis']
+        )
+      )
+      
+      if (enhancedAgents.length >= 4) {
+        const team1 = createAgentTeam(
+          'Incident Response Team Alpha',
+          enhancedAgents[0],
+          [enhancedAgents[1], enhancedAgents[2]],
+          'Critical incident detection and rapid response'
+        )
+        
+        const team2 = createAgentTeam(
+          'Analysis & Resolution Team Beta',
+          enhancedAgents[1],
+          [enhancedAgents[2], enhancedAgents[3]],
+          'Deep analysis and automated resolution workflows'
+        )
+        
+        setAgentTeams([team1, team2])
+      }
+    }
+  }, [agents, agentTeams, setAgentTeams])
+
+  useEffect(() => {
     if ((incidents || []).length > 0) {
       const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
       const latest = Math.max(...(incidents || []).map(i => i.createdAt))
@@ -1007,6 +1070,43 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              <Button 
+                onClick={() => setShowAgentHierarchy(true)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <UsersIcon size={20} className="mr-2" weight="duotone" />
+                Agent Teams
+                {(agentTeams || []).length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {(agentTeams || []).length}
+                  </Badge>
+                )}
+              </Button>
+              <Button 
+                onClick={() => setShowIntegrationHub(true)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <Plugs size={20} className="mr-2" weight="duotone" />
+                Integrations
+                {(integrations || []).filter(int => int.enabled).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
+                    {(integrations || []).filter(int => int.enabled).length} active
+                  </Badge>
+                )}
+              </Button>
+              <Button 
+                onClick={() => setShowSecurityDashboard(true)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <ShieldCheck size={20} className="mr-2" weight="duotone" />
+                Security & Compliance
+              </Button>
               {biometricSettings?.enabled && (
                 <Button
                   onClick={() => setShowBiometricVerification(true)}
@@ -1959,6 +2059,61 @@ function App() {
         onVerificationComplete={handleBiometricVerification}
         settings={biometricSettings || defaultBiometricSettings}
       />
+
+      <Dialog open={showAgentHierarchy} onOpenChange={setShowAgentHierarchy}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UsersIcon size={24} weight="duotone" className="text-primary" />
+              Agent Team Management & Collaboration
+            </DialogTitle>
+            <DialogDescription>
+              Manage agent teams, monitor collaboration, and optimize performance
+            </DialogDescription>
+          </DialogHeader>
+          <AgentHierarchyDashboard 
+            teams={agentTeams || []}
+            activeIncident={selectedIncident || undefined}
+            onTeamUpdate={(updatedTeams) => setAgentTeams(updatedTeams)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showIntegrationHub} onOpenChange={setShowIntegrationHub}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plugs size={24} weight="duotone" className="text-primary" />
+              Integration Hub
+            </DialogTitle>
+            <DialogDescription>
+              Connect and manage external tools and services for automated workflows
+            </DialogDescription>
+          </DialogHeader>
+          <IntegrationHub
+            integrations={integrations || []}
+            onIntegrationUpdate={setIntegrations}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSecurityDashboard} onOpenChange={setShowSecurityDashboard}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck size={24} weight="duotone" className="text-primary" />
+              Security & Compliance Dashboard
+            </DialogTitle>
+            <DialogDescription>
+              Monitor compliance, security policies, audit logs, and permissions
+            </DialogDescription>
+          </DialogHeader>
+          <SecurityComplianceDashboard
+            userRole={userRole}
+            auditLogs={auditLogs || []}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
