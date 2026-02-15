@@ -18,7 +18,10 @@ import {
   Sparkle,
   Paperclip,
   XCircle,
-  ArrowUp
+  ArrowUp,
+  ArrowDown,
+  CaretLeft,
+  CaretRight
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { ChatMessage, ChatAttachment, ChatRecommendation } from '@/lib/chatbot-types'
@@ -40,10 +43,13 @@ export function Chatbot({ incidents, onRecommendationAction }: ChatbotProps) {
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [recommendations, setRecommendations] = useState<ChatRecommendation[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [showScrollButtons, setShowScrollButtons] = useState({ top: false, bottom: false })
+  const [canScrollRecommendations, setCanScrollRecommendations] = useState({ left: false, right: false })
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recommendationsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -57,8 +63,46 @@ export function Chatbot({ incidents, onRecommendationAction }: ChatbotProps) {
     setRecommendations(recs)
   }, [incidents, messages])
 
+  useEffect(() => {
+    checkScrollButtons()
+    checkRecommendationsScroll()
+  }, [messages, recommendations])
+
+  const checkScrollButtons = () => {
+    if (!scrollRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    setShowScrollButtons({
+      top: scrollTop > 100,
+      bottom: scrollTop < scrollHeight - clientHeight - 100
+    })
+  }
+
+  const checkRecommendationsScroll = () => {
+    if (!recommendationsRef.current) return
+    const { scrollLeft, scrollWidth, clientWidth } = recommendationsRef.current
+    setCanScrollRecommendations({
+      left: scrollLeft > 0,
+      right: scrollLeft < scrollWidth - clientWidth - 10
+    })
+  }
+
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const scrollRecommendations = (direction: 'left' | 'right') => {
+    if (!recommendationsRef.current) return
+    const scrollAmount = 200
+    const newScrollLeft = direction === 'left' 
+      ? recommendationsRef.current.scrollLeft - scrollAmount
+      : recommendationsRef.current.scrollLeft + scrollAmount
+    
+    recommendationsRef.current.scrollTo({ left: newScrollLeft, behavior: 'smooth' })
+    setTimeout(checkRecommendationsScroll, 300)
   }
 
   const handleSendMessage = async () => {
@@ -138,8 +182,11 @@ export function Chatbot({ incidents, onRecommendationAction }: ChatbotProps) {
     setAttachments(current => current.filter(a => a.id !== id))
   }
 
-  const handleVoiceTranscript = (transcript: string) => {
+  const handleVoiceTranscript = (transcript: string, voiceAttachments?: ChatAttachment[]) => {
     setInputValue(transcript)
+    if (voiceAttachments && voiceAttachments.length > 0) {
+      setAttachments(current => [...current, ...voiceAttachments])
+    }
     setShowVoiceChat(false)
   }
 
@@ -242,113 +289,176 @@ export function Chatbot({ incidents, onRecommendationAction }: ChatbotProps) {
         </CardHeader>
 
         {recommendations.length > 0 && (
-          <div className="p-3 border-b bg-muted/30">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkle size={16} weight="duotone" className="text-primary" />
-              <span className="text-xs font-semibold text-muted-foreground">
-                Recommendations
-              </span>
+          <div className="p-3 border-b bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkle size={18} weight="duotone" className="text-primary animate-pulse" />
+                <span className="text-sm font-bold text-foreground">
+                  Smart Suggestions
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {recommendations.length}
+                </Badge>
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => scrollRecommendations('left')}
+                  disabled={!canScrollRecommendations.left}
+                  className="h-6 w-6 p-0"
+                >
+                  <CaretLeft size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => scrollRecommendations('right')}
+                  disabled={!canScrollRecommendations.right}
+                  className="h-6 w-6 p-0"
+                >
+                  <CaretRight size={16} />
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {recommendations.slice(0, 3).map(rec => (
+            <div 
+              ref={recommendationsRef}
+              className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth"
+              onScroll={checkRecommendationsScroll}
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {recommendations.map(rec => (
                 <Button
                   key={rec.id}
                   variant="outline"
                   size="sm"
                   onClick={() => handleRecommendationClick(rec.action)}
-                  className="text-xs h-7"
+                  className="text-xs h-auto py-2 px-3 whitespace-nowrap flex-shrink-0 hover:bg-primary hover:text-primary-foreground transition-all border-primary/20 hover:border-primary"
                 >
-                  {rec.title}
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="font-semibold">{rec.title}</span>
+                    <span className="text-[10px] opacity-70 font-normal">
+                      {rec.description}
+                    </span>
+                  </div>
                 </Button>
               ))}
             </div>
           </div>
         )}
 
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
-            {(messages || []).length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <ChatCircle size={48} weight="duotone" className="mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium mb-1">Welcome to AI Assistant</p>
-                <p className="text-xs">
-                  Ask me about incidents, metrics, or system status
-                </p>
-              </div>
-            )}
-
-            {(messages || []).map(message => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex gap-3",
-                  message.role === 'user' ? "justify-end" : "justify-start"
-                )}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-lg p-3",
-                    message.role === 'user'
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  )}
-                >
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 space-y-2">
-                      {message.attachments.map(attachment => (
-                        <div
-                          key={attachment.id}
-                          className={cn(
-                            "flex items-center gap-2 p-2 rounded text-xs",
-                            message.role === 'user'
-                              ? "bg-primary-foreground/10"
-                              : "bg-background"
-                          )}
-                        >
-                          {getAttachmentIcon(attachment.type)}
-                          <span className="flex-1 truncate">{attachment.name}</span>
-                          <span className="text-xs opacity-70">
-                            {(attachment.size / 1024).toFixed(1)}KB
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  
-                  {message.isVoice && (
-                    <Badge 
-                      variant="secondary" 
-                      className="mt-2 text-xs"
-                    >
-                      <Microphone size={12} className="mr-1" />
-                      Voice
-                    </Badge>
-                  )}
-                  
-                  <p className="text-xs opacity-70 mt-1">
-                    {formatTime(message.timestamp)}
+        <div className="flex-1 relative overflow-hidden">
+          <ScrollArea 
+            ref={scrollRef}
+            className="h-full p-4"
+            onScrollCapture={checkScrollButtons}
+          >
+            <div className="space-y-4">
+              {(messages || []).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ChatCircle size={48} weight="duotone" className="mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium mb-1">Welcome to AI Assistant</p>
+                  <p className="text-xs">
+                    Ask me about incidents, metrics, or system status
                   </p>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              {(messages || []).map(message => (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "flex gap-3",
+                    message.role === 'user' ? "justify-end" : "justify-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-lg p-3",
+                      message.role === 'user'
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    )}
+                  >
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mb-2 space-y-2">
+                        {message.attachments.map(attachment => (
+                          <div
+                            key={attachment.id}
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded text-xs",
+                              message.role === 'user'
+                                ? "bg-primary-foreground/10"
+                                : "bg-background"
+                            )}
+                          >
+                            {getAttachmentIcon(attachment.type)}
+                            <span className="flex-1 truncate">{attachment.name}</span>
+                            <span className="text-xs opacity-70">
+                              {(attachment.size / 1024).toFixed(1)}KB
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    
+                    {message.isVoice && (
+                      <Badge 
+                        variant="secondary" 
+                        className="mt-2 text-xs"
+                      >
+                        <Microphone size={12} className="mr-1" />
+                        Voice
+                      </Badge>
+                    )}
+                    
+                    <p className="text-xs opacity-70 mt-1">
+                      {formatTime(message.timestamp)}
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
 
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+              {isLoading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="bg-muted rounded-lg p-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+
+          {showScrollButtons.top && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={scrollToTop}
+              className="absolute top-4 left-1/2 -translate-x-1/2 z-10 shadow-lg h-8 w-8 p-0 rounded-full"
+            >
+              <ArrowUp size={16} weight="bold" />
+            </Button>
+          )}
+
+          {showScrollButtons.bottom && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={scrollToBottom}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 shadow-lg h-8 w-8 p-0 rounded-full"
+            >
+              <ArrowDown size={16} weight="bold" />
+            </Button>
+          )}
+        </div>
 
         <div className="p-3 border-t">
           {attachments.length > 0 && (
