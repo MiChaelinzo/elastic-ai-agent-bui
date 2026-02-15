@@ -36,6 +36,15 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Rich Notifications**: Include incident details, confidence scores, and direct action links
 - **Test Configuration**: Verify notification setup before going live
 
+### 🎤 Voice Commands for Hands-Free Operation
+- **40+ Voice Commands**: Control all major functions through natural language
+- **Browser-Based Recognition**: Uses Web Speech API (Chrome, Edge, Safari)
+- **Continuous Listening**: Optional always-on mode for hands-free operation
+- **Multi-Language Support**: English, Spanish, French, German, Italian, Japanese, Chinese
+- **Voice Feedback**: Audio confirmations and status updates
+- **Configurable Settings**: Adjust confidence thresholds, language, and behavior
+- **Complete Documentation**: See [VOICE_COMMANDS.md](./VOICE_COMMANDS.md) for full command reference
+
 ### Real-Time Metrics Dashboard
 - **Live KPIs**: Track total incidents, resolution rates, active alerts, and more
 - **Performance Metrics**: Monitor average resolution time and automated steps

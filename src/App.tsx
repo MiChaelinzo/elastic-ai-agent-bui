@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -31,7 +31,7 @@ import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
 import { ElasticsearchDashboard } from '@/components/ElasticsearchDashboard'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database, Microphone } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -86,6 +86,10 @@ import { ESQLDashboard } from '@/components/ESQLDashboard'
 import { Code } from '@phosphor-icons/react'
 import { getSimulatedCurrentTime } from '@/lib/utils'
 import { Chatbot } from '@/components/Chatbot'
+import { VoiceCommandButton } from '@/components/VoiceCommandButton'
+import { VoiceCommandPanel } from '@/components/VoiceCommandPanel'
+import { VoiceSettingsDialog } from '@/components/VoiceSettingsDialog'
+import { defaultVoiceSettings, type VoiceRecognitionSettings } from '@/lib/voice-commands'
 
 const initialAgents: Agent[] = [
   {
@@ -194,6 +198,10 @@ function App() {
   const [metricCorrelationAnalysis, setMetricCorrelationAnalysis] = useState<MetricCorrelationAnalysis | null>(null)
   const [showLiveStreaming, setShowLiveStreaming] = useState(false)
   const [showESQLDashboard, setShowESQLDashboard] = useState(false)
+  const [showVoiceCommands, setShowVoiceCommands] = useState(false)
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false)
+  
+  const [voiceSettings, setVoiceSettings] = useKV<VoiceRecognitionSettings>('voice-settings', defaultVoiceSettings)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -790,6 +798,141 @@ function App() {
     }
   }
 
+  const handleVoiceCommand = useCallback((action: string, params?: Record<string, string>) => {
+    switch (action) {
+      case 'create-incident':
+        setShowNewIncident(true)
+        break
+      case 'show-incidents':
+        const allTab = document.querySelector('[value="all"]')
+        if (allTab instanceof HTMLElement) {
+          allTab.click()
+        }
+        break
+      case 'show-active':
+        const activeTab = document.querySelector('[value="active"]')
+        if (activeTab instanceof HTMLElement) {
+          activeTab.click()
+        }
+        break
+      case 'show-pending':
+        const pendingTab = document.querySelector('[value="pending"]')
+        if (pendingTab instanceof HTMLElement) {
+          pendingTab.click()
+        }
+        break
+      case 'show-resolved':
+        const resolvedTab = document.querySelector('[value="resolved"]')
+        if (resolvedTab instanceof HTMLElement) {
+          resolvedTab.click()
+        }
+        break
+      case 'open-analytics':
+        setShowAnalytics(true)
+        break
+      case 'open-queue':
+        setShowPriorityQueue(true)
+        break
+      case 'open-predictions':
+        setShowPredictiveAnalytics(true)
+        break
+      case 'open-anomalies':
+        setShowAnomalyDetection(true)
+        break
+      case 'open-elasticsearch':
+        setShowElasticsearchDashboard(true)
+        break
+      case 'open-esql':
+        setShowESQLDashboard(true)
+        break
+      case 'open-streaming':
+        setShowLiveStreaming(true)
+        break
+      case 'open-templates':
+        setShowTemplates(true)
+        break
+      case 'open-settings':
+        setShowSettings(true)
+        break
+      case 'start-agent-analysis':
+        if (selectedIncident && selectedIncident.status === 'new') {
+          processIncident(selectedIncident)
+        } else if (activeIncidents.length > 0) {
+          processIncident(activeIncidents[0])
+        } else {
+          toast.warning('No incidents available to process')
+        }
+        break
+      case 'approve-incident':
+        if (incidentPendingApproval) {
+          handleApprove()
+        } else if (pendingApprovalIncidents.length > 0) {
+          setIncidentPendingApproval(pendingApprovalIncidents[0])
+          setShowApprovalDialog(true)
+        } else {
+          toast.info('No incidents awaiting approval')
+        }
+        break
+      case 'reject-incident':
+        if (incidentPendingApproval) {
+          handleReject()
+        } else {
+          toast.info('No incidents selected for rejection')
+        }
+        break
+      case 'filter-critical':
+        setFilterSeverity('critical')
+        break
+      case 'filter-high':
+        setFilterSeverity('high')
+        break
+      case 'clear-filters':
+        handleClearFilters()
+        break
+      case 'toggle-theme':
+        const themeToggleBtn = document.querySelector('[data-theme-toggle]')
+        if (themeToggleBtn instanceof HTMLElement) {
+          themeToggleBtn.click()
+        }
+        break
+      case 'load-sample-data':
+        handleLoadSampleData()
+        break
+      case 'export-data':
+        const exportBtn = document.querySelector('[data-export-button]')
+        if (exportBtn instanceof HTMLElement) {
+          exportBtn.click()
+        }
+        break
+      case 'open-chatbot':
+        const chatbotBtn = document.querySelector('[data-chatbot-toggle]')
+        if (chatbotBtn instanceof HTMLElement) {
+          chatbotBtn.click()
+        }
+        break
+      case 'refresh-data':
+        window.location.reload()
+        break
+      case 'help':
+        setShowVoiceCommands(true)
+        break
+      case 'stop-listening':
+        break
+      default:
+        toast.info('Command not implemented yet')
+    }
+  }, [
+    selectedIncident,
+    activeIncidents,
+    incidentPendingApproval,
+    pendingApprovalIncidents,
+    handleApprove,
+    handleReject,
+    handleClearFilters,
+    handleLoadSampleData,
+    processIncident
+  ])
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
@@ -817,6 +960,19 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              <VoiceCommandButton 
+                settings={voiceSettings || defaultVoiceSettings}
+                onCommand={handleVoiceCommand}
+                showTranscript={true}
+              />
+              <Button 
+                onClick={() => setShowVoiceCommands(true)}
+                variant="outline"
+                size="lg"
+              >
+                <Microphone size={20} className="mr-2" weight="duotone" />
+                Voice Help
+              </Button>
               <Button 
                 onClick={() => setShowESQLDashboard(true)}
                 variant="outline"
@@ -1500,7 +1656,7 @@ function App() {
           </DialogHeader>
 
           <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly')} className="py-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="confidence" className="flex items-center gap-2">
                 <ShieldCheck size={18} weight="duotone" />
                 Agent Settings
@@ -1516,6 +1672,10 @@ function App() {
               <TabsTrigger value="anomaly" className="flex items-center gap-2">
                 <Sliders size={18} weight="duotone" />
                 Anomaly Detection
+              </TabsTrigger>
+              <TabsTrigger value="voice" className="flex items-center gap-2">
+                <Microphone size={18} weight="duotone" />
+                Voice
               </TabsTrigger>
               <TabsTrigger value="background" className="flex items-center gap-2">
                 <PaintBrush size={18} weight="duotone" />
@@ -1556,6 +1716,32 @@ function App() {
                   thresholds={anomalyThresholds}
                   onChange={(newThresholds) => setAnomalyThresholds(newThresholds)}
                 />
+              )}
+            </TabsContent>
+
+            <TabsContent value="voice" className="space-y-4 mt-6">
+              {voiceSettings && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">Voice Command Configuration</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure voice recognition settings
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowVoiceSettings(true)}
+                    >
+                      <Sliders size={18} className="mr-2" weight="duotone" />
+                      Advanced Settings
+                    </Button>
+                  </div>
+                  <VoiceCommandPanel
+                    settings={voiceSettings}
+                    onCommand={handleVoiceCommand}
+                  />
+                </div>
               )}
             </TabsContent>
 
@@ -1656,6 +1842,33 @@ function App() {
         incidents={incidents || []}
         onRecommendationAction={handleChatbotRecommendationAction}
       />
+
+      <Dialog open={showVoiceCommands} onOpenChange={setShowVoiceCommands}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Microphone size={24} weight="duotone" className="text-primary" />
+              Voice Commands Reference
+            </DialogTitle>
+            <DialogDescription>
+              Complete guide to available voice commands and settings
+            </DialogDescription>
+          </DialogHeader>
+          <VoiceCommandPanel
+            settings={voiceSettings || defaultVoiceSettings}
+            onCommand={handleVoiceCommand}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {voiceSettings && (
+        <VoiceSettingsDialog
+          isOpen={showVoiceSettings}
+          onClose={() => setShowVoiceSettings(false)}
+          settings={voiceSettings}
+          onChange={setVoiceSettings}
+        />
+      )}
     </div>
   )
 }

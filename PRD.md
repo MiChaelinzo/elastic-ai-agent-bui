@@ -47,6 +47,13 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Progression: Open Settings → Navigate to Notifications tab → Enable notifications → Configure email recipients and/or Slack webhook URL → Set notification triggers → Test configuration → Save settings → Receive alerts when conditions are met
 - Success criteria: Team members receive rich, formatted notifications via email and/or Slack with incident details, confidence scores, approval reasons, and direct links to review the incident
 
+**Voice Command System for Hands-Free Operation**
+- Functionality: Browser-based voice recognition that enables complete hands-free control of the incident response platform through natural language commands
+- Purpose: Allows DevOps engineers to manage incidents, analyze data, and control the system without touching keyboard or mouse - critical during high-stress situations or when multitasking
+- Trigger: User clicks "Voice Commands" button to activate listening or says wake word
+- Progression: Activate voice recognition → System listens continuously → User speaks natural command (e.g., "show critical incidents", "start agent analysis", "approve incident") → System matches command to action → Provides voice feedback confirmation → Executes command → Shows visual confirmation
+- Success criteria: Users can navigate, create incidents, filter data, start/approve workflows, open dashboards, and control all major functions using only voice commands with high accuracy (>70% confidence threshold)
+
 **Real-Time Metrics Dashboard**
 - Functionality: Live overview displaying key performance indicators including total incidents, resolution rates, average resolution time, active incidents, pending approvals, and failed incidents
 - Purpose: Provides at-a-glance visibility into system health and agent performance for informed decision-making
