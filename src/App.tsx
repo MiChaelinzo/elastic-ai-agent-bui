@@ -31,7 +31,8 @@ import { AgentCollaborationGraph } from '@/components/AgentCollaborationGraph'
 import { CollaborationVisualization } from '@/components/CollaborationVisualization'
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
 import { ElasticsearchDashboard } from '@/components/ElasticsearchDashboard'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database, Microphone, Book } from '@phosphor-icons/react'
+import { SLADashboard } from '@/components/SLADashboard'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database, Microphone, Book, Target } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -114,6 +115,7 @@ import {
   incrementArticleView,
   rateArticle as rateKnowledgeArticle 
 } from '@/lib/knowledge-base'
+import { defaultSLAPolicies, type SLAPolicy, type SLABreach } from '@/lib/sla-management'
 
 const initialAgents: Agent[] = [
   {
@@ -250,6 +252,10 @@ function App() {
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false)
   const [showArticlePrompt, setShowArticlePrompt] = useState(false)
   const [incidentForArticle, setIncidentForArticle] = useState<Incident | null>(null)
+  
+  const [showSLADashboard, setShowSLADashboard] = useState(false)
+  const [slaPolicies, setSlaPolicies] = useKV<SLAPolicy[]>('sla-policies', defaultSLAPolicies)
+  const [slaBreaches, setSlaBreaches] = useKV<SLABreach[]>('sla-breaches', [])
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -987,6 +993,11 @@ function App() {
       case 'open-knowledge-base':
         setShowKnowledgeBase(true)
         break
+      case 'open-sla':
+      case 'show-sla':
+      case 'open-sla-dashboard':
+        setShowSLADashboard(true)
+        break
       case 'generate-article':
         if (resolvedIncidents.length > 0) {
           setShowGenerateArticle(true)
@@ -1170,6 +1181,45 @@ function App() {
     )
   }, [selectedArticle, incidents])
 
+  const handleSLABreachDetected = (breach: SLABreach) => {
+    setSlaBreaches((current) => [breach, ...(current || [])])
+    
+    const user = window.spark.user().then(user => {
+      const auditLog = createAuditLog(
+        user?.id?.toString() || 'system',
+        user?.login || 'System',
+        'sla.breach.detected',
+        'incident',
+        breach.incidentId,
+        `SLA breach detected for ${breach.incidentTitle}: ${breach.breachType} deadline exceeded by ${formatSLATime(breach.timeOverBreach)}`,
+        false,
+        { 
+          breachType: breach.breachType, 
+          severity: breach.severity,
+          timeOverBreach: breach.timeOverBreach 
+        }
+      )
+      setAuditLogs((current) => [auditLog, ...(current || [])])
+    })
+  }
+
+  const formatSLATime = (milliseconds: number): string => {
+    const seconds = Math.floor(milliseconds / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) {
+      return `${days}d ${hours % 24}h`
+    } else if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`
+    } else if (minutes > 0) {
+      return `${minutes}m`
+    } else {
+      return `${seconds}s`
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
@@ -1197,6 +1247,20 @@ function App() {
             
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              <Button 
+                onClick={() => setShowSLADashboard(true)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <Target size={20} className="mr-2" weight="duotone" />
+                SLA Management
+                {(slaBreaches || []).filter(b => !b.acknowledged).length > 0 && (
+                  <Badge variant="destructive" className="ml-2 animate-pulse">
+                    {(slaBreaches || []).filter(b => !b.acknowledged).length}
+                  </Badge>
+                )}
+              </Button>
               <Button 
                 onClick={() => setShowKnowledgeBase(true)}
                 variant="outline"
@@ -2363,6 +2427,25 @@ function App() {
           isGenerating={isGeneratingArticle}
         />
       )}
+
+      <Dialog open={showSLADashboard} onOpenChange={setShowSLADashboard}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target size={24} weight="duotone" className="text-primary" />
+              SLA Management & Compliance
+            </DialogTitle>
+            <DialogDescription>
+              Monitor service level agreements, track compliance, and manage breach alerts
+            </DialogDescription>
+          </DialogHeader>
+          <SLADashboard 
+            incidents={incidents || []}
+            policies={slaPolicies || defaultSLAPolicies}
+            onBreachDetected={handleSLABreachDetected}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

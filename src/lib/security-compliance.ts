@@ -35,6 +35,9 @@ export type AuditAction =
   | 'knowledge.article.created'
   | 'knowledge.article.viewed'
   | 'knowledge.article.rated'
+  | 'sla.breach.detected'
+  | 'sla.breach.acknowledged'
+  | 'sla.policy.updated'
 
 export type UserRole = 'admin' | 'operator' | 'analyst' | 'viewer'
 

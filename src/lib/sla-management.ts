@@ -10,6 +10,7 @@ export interface SLAPolicy {
   escalationTime?: number
   businessHoursOnly: boolean
   enabled: boolean
+  target?: number
 }
 
 export interface SLAStatus {
@@ -26,6 +27,46 @@ export interface SLAStatus {
   timeToResolutionBreach: number
   percentComplete: number
   status: 'on-track' | 'at-risk' | 'breached'
+  breachType?: 'response' | 'resolution' | 'both'
+  timeOverBreach?: number
+}
+
+export interface SLABreach {
+  id: string
+  incidentId: string
+  incidentTitle: string
+  severity: IncidentSeverity
+  policyId: string
+  breachType: 'response' | 'resolution' | 'both'
+  breachedAt: number
+  timeOverBreach: number
+  acknowledged: boolean
+  acknowledgedBy?: string
+  acknowledgedAt?: number
+  notes?: string
+}
+
+export interface SLAMetrics {
+  overall: {
+    compliance: number
+    totalIncidents: number
+    compliantIncidents: number
+    breachedIncidents: number
+    averageResolutionTime: number
+    averageResponseTime: number
+  }
+  bySeverity: Record<IncidentSeverity, {
+    compliance: number
+    total: number
+    compliant: number
+    breached: number
+    averageResolutionTime: number
+  }>
+  trends: {
+    period: string
+    compliance: number
+    breached: number
+  }[]
 }
 
 export const defaultSLAPolicies: SLAPolicy[] = [
@@ -38,7 +79,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     resolutionTime: 4 * 60 * 60 * 1000,
     escalationTime: 30 * 60 * 1000,
     businessHoursOnly: false,
-    enabled: true
+    enabled: true,
+    target: 99.5
   },
   {
     id: 'sla-high',
@@ -49,7 +91,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     resolutionTime: 8 * 60 * 60 * 1000,
     escalationTime: 2 * 60 * 60 * 1000,
     businessHoursOnly: false,
-    enabled: true
+    enabled: true,
+    target: 98.0
   },
   {
     id: 'sla-medium',
@@ -60,7 +103,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     resolutionTime: 24 * 60 * 60 * 1000,
     escalationTime: 4 * 60 * 60 * 1000,
     businessHoursOnly: true,
-    enabled: true
+    enabled: true,
+    target: 95.0
   },
   {
     id: 'sla-low',
@@ -70,7 +114,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     responseTime: 4 * 60 * 60 * 1000,
     resolutionTime: 48 * 60 * 60 * 1000,
     businessHoursOnly: true,
-    enabled: true
+    enabled: true,
+    target: 90.0
   }
 ]
 
@@ -118,6 +163,24 @@ export function calculateSLAStatus(incident: Incident, policy: SLAPolicy, curren
     status = 'at-risk'
   }
 
+  let breachType: 'response' | 'resolution' | 'both' | undefined
+  if (responseBreached && resolutionBreached) {
+    breachType = 'both'
+  } else if (responseBreached) {
+    breachType = 'response'
+  } else if (resolutionBreached) {
+    breachType = 'resolution'
+  }
+
+  const timeOverBreach = resolutionBreached 
+    ? Math.max(
+        responseBreached ? (responseTime! - policy.responseTime) : 0,
+        incident.status === 'resolved' ? (resolutionTime! - policy.resolutionTime) : (currentTime - resolutionDeadline)
+      )
+    : responseBreached 
+    ? (responseTime! - policy.responseTime)
+    : 0
+
   return {
     incidentId: incident.id,
     policyId: policy.id,
@@ -131,7 +194,9 @@ export function calculateSLAStatus(incident: Incident, policy: SLAPolicy, curren
     timeToResponseBreach,
     timeToResolutionBreach,
     percentComplete,
-    status
+    status,
+    breachType,
+    timeOverBreach
   }
 }
 
@@ -161,29 +226,44 @@ export function getSLAStatusColor(status: SLAStatus): string {
   return 'text-success'
 }
 
-export function getSLAComplianceRate(incidents: Incident[], policies: SLAPolicy[]): {
-  overall: number
-  bySeverity: Record<IncidentSeverity, number>
-  totalIncidents: number
-  compliantIncidents: number
-} {
+export function getSLAMetrics(incidents: Incident[], policies: SLAPolicy[]): SLAMetrics {
   const resolvedIncidents = incidents.filter(i => i.status === 'resolved')
   
   if (resolvedIncidents.length === 0) {
     return {
-      overall: 100,
-      bySeverity: { critical: 100, high: 100, medium: 100, low: 100 },
-      totalIncidents: 0,
-      compliantIncidents: 0
+      overall: {
+        compliance: 100,
+        totalIncidents: 0,
+        compliantIncidents: 0,
+        breachedIncidents: 0,
+        averageResolutionTime: 0,
+        averageResponseTime: 0
+      },
+      bySeverity: {
+        critical: { compliance: 100, total: 0, compliant: 0, breached: 0, averageResolutionTime: 0 },
+        high: { compliance: 100, total: 0, compliant: 0, breached: 0, averageResolutionTime: 0 },
+        medium: { compliance: 100, total: 0, compliant: 0, breached: 0, averageResolutionTime: 0 },
+        low: { compliance: 100, total: 0, compliant: 0, breached: 0, averageResolutionTime: 0 }
+      },
+      trends: []
     }
   }
 
   let compliantCount = 0
-  const bySeverity: Record<IncidentSeverity, { total: number, compliant: number }> = {
-    critical: { total: 0, compliant: 0 },
-    high: { total: 0, compliant: 0 },
-    medium: { total: 0, compliant: 0 },
-    low: { total: 0, compliant: 0 }
+  let totalResponseTime = 0
+  let totalResolutionTime = 0
+  let responseTimeCount = 0
+
+  const bySeverity: Record<IncidentSeverity, { 
+    total: number
+    compliant: number
+    breached: number
+    totalResolutionTime: number
+  }> = {
+    critical: { total: 0, compliant: 0, breached: 0, totalResolutionTime: 0 },
+    high: { total: 0, compliant: 0, breached: 0, totalResolutionTime: 0 },
+    medium: { total: 0, compliant: 0, breached: 0, totalResolutionTime: 0 },
+    low: { total: 0, compliant: 0, breached: 0, totalResolutionTime: 0 }
   }
 
   resolvedIncidents.forEach(incident => {
@@ -193,31 +273,116 @@ export function getSLAComplianceRate(incidents: Incident[], policies: SLAPolicy[
     const status = calculateSLAStatus(incident, policy, incident.updatedAt)
     bySeverity[incident.severity].total++
 
+    const resolutionTime = incident.updatedAt - incident.createdAt
+    bySeverity[incident.severity].totalResolutionTime += resolutionTime
+    totalResolutionTime += resolutionTime
+
+    if (status.responseTime) {
+      totalResponseTime += status.responseTime
+      responseTimeCount++
+    }
+
     if (!status.responseBreached && !status.resolutionBreached) {
       compliantCount++
       bySeverity[incident.severity].compliant++
+    } else {
+      bySeverity[incident.severity].breached++
     }
   })
 
-  const bySeverityRates: Record<IncidentSeverity, number> = {
-    critical: bySeverity.critical.total > 0 
-      ? (bySeverity.critical.compliant / bySeverity.critical.total) * 100 
-      : 100,
-    high: bySeverity.high.total > 0 
-      ? (bySeverity.high.compliant / bySeverity.high.total) * 100 
-      : 100,
-    medium: bySeverity.medium.total > 0 
-      ? (bySeverity.medium.compliant / bySeverity.medium.total) * 100 
-      : 100,
-    low: bySeverity.low.total > 0 
-      ? (bySeverity.low.compliant / bySeverity.low.total) * 100 
-      : 100
+  const bySeverityMetrics: Record<IncidentSeverity, {
+    compliance: number
+    total: number
+    compliant: number
+    breached: number
+    averageResolutionTime: number
+  }> = {
+    critical: {
+      compliance: bySeverity.critical.total > 0 
+        ? (bySeverity.critical.compliant / bySeverity.critical.total) * 100 
+        : 100,
+      total: bySeverity.critical.total,
+      compliant: bySeverity.critical.compliant,
+      breached: bySeverity.critical.breached,
+      averageResolutionTime: bySeverity.critical.total > 0
+        ? bySeverity.critical.totalResolutionTime / bySeverity.critical.total
+        : 0
+    },
+    high: {
+      compliance: bySeverity.high.total > 0 
+        ? (bySeverity.high.compliant / bySeverity.high.total) * 100 
+        : 100,
+      total: bySeverity.high.total,
+      compliant: bySeverity.high.compliant,
+      breached: bySeverity.high.breached,
+      averageResolutionTime: bySeverity.high.total > 0
+        ? bySeverity.high.totalResolutionTime / bySeverity.high.total
+        : 0
+    },
+    medium: {
+      compliance: bySeverity.medium.total > 0 
+        ? (bySeverity.medium.compliant / bySeverity.medium.total) * 100 
+        : 100,
+      total: bySeverity.medium.total,
+      compliant: bySeverity.medium.compliant,
+      breached: bySeverity.medium.breached,
+      averageResolutionTime: bySeverity.medium.total > 0
+        ? bySeverity.medium.totalResolutionTime / bySeverity.medium.total
+        : 0
+    },
+    low: {
+      compliance: bySeverity.low.total > 0 
+        ? (bySeverity.low.compliant / bySeverity.low.total) * 100 
+        : 100,
+      total: bySeverity.low.total,
+      compliant: bySeverity.low.compliant,
+      breached: bySeverity.low.breached,
+      averageResolutionTime: bySeverity.low.total > 0
+        ? bySeverity.low.totalResolutionTime / bySeverity.low.total
+        : 0
+    }
   }
 
   return {
-    overall: (compliantCount / resolvedIncidents.length) * 100,
-    bySeverity: bySeverityRates,
-    totalIncidents: resolvedIncidents.length,
-    compliantIncidents: compliantCount
+    overall: {
+      compliance: (compliantCount / resolvedIncidents.length) * 100,
+      totalIncidents: resolvedIncidents.length,
+      compliantIncidents: compliantCount,
+      breachedIncidents: resolvedIncidents.length - compliantCount,
+      averageResolutionTime: totalResolutionTime / resolvedIncidents.length,
+      averageResponseTime: responseTimeCount > 0 ? totalResponseTime / responseTimeCount : 0
+    },
+    bySeverity: bySeverityMetrics,
+    trends: []
   }
+}
+
+export function detectSLABreaches(incidents: Incident[], policies: SLAPolicy[], existingBreaches: SLABreach[] = []): SLABreach[] {
+  const breaches: SLABreach[] = []
+  const existingBreachIds = new Set(existingBreaches.map(b => b.incidentId))
+
+  incidents.forEach(incident => {
+    if (existingBreachIds.has(incident.id)) return
+
+    const policy = getSLAPolicy(incident.severity, policies)
+    if (!policy) return
+
+    const status = calculateSLAStatus(incident, policy)
+    
+    if (status.status === 'breached' && status.breachType && status.timeOverBreach) {
+      breaches.push({
+        id: `breach-${incident.id}-${Date.now()}`,
+        incidentId: incident.id,
+        incidentTitle: incident.title,
+        severity: incident.severity,
+        policyId: policy.id,
+        breachType: status.breachType,
+        breachedAt: Date.now(),
+        timeOverBreach: status.timeOverBreach,
+        acknowledged: false
+      })
+    }
+  })
+
+  return breaches
 }
