@@ -120,9 +120,11 @@ import { CommentThread } from '@/components/CommentThread'
 import { ActivityFeed } from '@/components/ActivityFeed'
 import { CollaborationStats } from '@/components/CollaborationStats'
 import { MentionsNotification } from '@/components/MentionsNotification'
-import { ChatCircleDots, Users } from '@phosphor-icons/react'
+import { AttachmentGallery } from '@/components/AttachmentGallery'
+import { ChatCircleDots, Users, Image as ImageIcon } from '@phosphor-icons/react'
 import {
   type Comment,
+  type CommentAttachment,
   type IncidentActivity,
   type ReactionType,
   type CollaborationSettings,
@@ -277,6 +279,7 @@ function App() {
   )
   const [showCollaboration, setShowCollaboration] = useState(false)
   const [showCollaborationStats, setShowCollaborationStats] = useState(false)
+  const [showAttachmentGallery, setShowAttachmentGallery] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; avatar: string } | null>(null)
   const [showGenerateArticle, setShowGenerateArticle] = useState(false)
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false)
@@ -1260,7 +1263,7 @@ function App() {
     setShowKnowledgeBase(true)
   }
 
-  const handleAddComment = async (incidentId: string, content: string, mentions: string[], parentId?: string, isInternal?: boolean) => {
+  const handleAddComment = async (incidentId: string, content: string, mentions: string[], parentId?: string, isInternal?: boolean, attachments?: CommentAttachment[]) => {
     if (!currentUser) return
 
     const comment = createComment(
@@ -1271,7 +1274,7 @@ function App() {
       content,
       mentions,
       parentId,
-      undefined,
+      attachments,
       isInternal || false
     )
 
@@ -1283,8 +1286,8 @@ function App() {
       currentUser.name,
       currentUser.avatar,
       'comment',
-      `commented on the incident${parentId ? ' (reply)' : ''}`,
-      { commentId: comment.id, isReply: !!parentId }
+      `commented on the incident${parentId ? ' (reply)' : ''}${attachments && attachments.length > 0 ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''}`,
+      { commentId: comment.id, isReply: !!parentId, hasAttachments: !!attachments && attachments.length > 0, attachmentCount: attachments?.length || 0 }
     )
     setActivities((current) => [activity, ...(current || [])])
 
@@ -1303,7 +1306,8 @@ function App() {
       })
     }
 
-    toast.success('Comment posted successfully')
+    const attachmentText = attachments && attachments.length > 0 ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''
+    toast.success(`Comment posted successfully${attachmentText}`)
   }
 
   const handleUpdateComment = (commentId: string, content: string, mentions: string[]) => {
@@ -1368,6 +1372,12 @@ function App() {
       selectedArticle.relatedIncidentIds.includes(inc.id)
     )
   }, [selectedArticle, incidents])
+
+  const totalAttachmentsCount = useMemo(() => {
+    return incidentComments.reduce((total, comment) => {
+      return total + (comment.attachments?.length || 0)
+    }, 0)
+  }, [incidentComments])
 
   const handleSLABreachDetected = (breach: SLABreach) => {
     setSlaBreaches((current) => [breach, ...(current || [])])
@@ -2169,6 +2179,19 @@ function App() {
                 <DialogTitle className="flex items-center justify-between">
                   <span>{selectedIncident.title}</span>
                   <div className="flex items-center gap-2">
+                    {totalAttachmentsCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAttachmentGallery(true)}
+                      >
+                        <ImageIcon size={18} className="mr-2" weight="duotone" />
+                        Attachments
+                        <Badge variant="secondary" className="ml-2">
+                          {totalAttachmentsCount}
+                        </Badge>
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -2748,6 +2771,14 @@ function App() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {selectedIncident && (
+        <AttachmentGallery
+          comments={incidentComments}
+          isOpen={showAttachmentGallery}
+          onClose={() => setShowAttachmentGallery(false)}
+        />
+      )}
     </div>
   )
 }

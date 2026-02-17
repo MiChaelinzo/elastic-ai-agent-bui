@@ -21,12 +21,15 @@ import {
 } from '@phosphor-icons/react'
 import {
   Comment,
+  CommentAttachment,
   ReactionType,
   reactionTypes,
   extractMentions,
   formatCommentTime,
   getReactionSummary
 } from '@/lib/incident-collaboration'
+import { FileUploadZone } from '@/components/FileUploadZone'
+import { AttachmentDisplay } from '@/components/AttachmentDisplay'
 import { toast } from 'sonner'
 
 interface CommentThreadProps {
@@ -37,7 +40,7 @@ interface CommentThreadProps {
     name: string
     avatar: string
   }
-  onAddComment: (content: string, mentions: string[], parentId?: string, isInternal?: boolean) => void
+  onAddComment: (content: string, mentions: string[], parentId?: string, isInternal?: boolean, attachments?: CommentAttachment[]) => void
   onUpdateComment: (commentId: string, content: string, mentions: string[]) => void
   onDeleteComment: (commentId: string) => void
   onAddReaction: (commentId: string, reactionType: ReactionType) => void
@@ -63,6 +66,8 @@ export function CommentThread({
   const [isInternal, setIsInternal] = useState(false)
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
+  const [attachments, setAttachments] = useState<CommentAttachment[]>([])
+  const [showAttachments, setShowAttachments] = useState(false)
 
   const handleSubmit = () => {
     if (!newComment.trim()) {
@@ -71,10 +76,12 @@ export function CommentThread({
     }
 
     const mentions = extractMentions(newComment)
-    onAddComment(newComment, mentions, replyTo || undefined, isInternal)
+    onAddComment(newComment, mentions, replyTo || undefined, isInternal, attachments.length > 0 ? attachments : undefined)
     setNewComment('')
     setReplyTo(null)
     setIsInternal(false)
+    setAttachments([])
+    setShowAttachments(false)
     
     if (mentions.length > 0) {
       toast.success(`Mentioned ${mentions.length} team member${mentions.length > 1 ? 's' : ''}`)
@@ -210,14 +217,7 @@ export function CommentThread({
               />
 
               {comment.attachments && comment.attachments.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {comment.attachments.map(attachment => (
-                    <Badge key={attachment.id} variant="secondary" className="gap-1">
-                      <Paperclip size={12} />
-                      {attachment.name}
-                    </Badge>
-                  ))}
-                </div>
+                <AttachmentDisplay attachments={comment.attachments} compact />
               )}
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -411,10 +411,34 @@ export function CommentThread({
               </Card>
             )}
 
+            {showAttachments && (
+              <FileUploadZone
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
+                maxFiles={5}
+              />
+            )}
+
             <div className="flex justify-between items-center">
-              <p className="text-xs text-muted-foreground">
-                Press Ctrl+Enter to post • Use @username to mention
-              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAttachments(!showAttachments)}
+                  className="h-8"
+                >
+                  <Paperclip size={16} className="mr-2" weight="duotone" />
+                  {showAttachments ? 'Hide' : 'Add'} Attachments
+                  {attachments.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {attachments.length}
+                    </Badge>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Press Ctrl+Enter to post • Use @username to mention
+                </p>
+              </div>
               <Button onClick={handleSubmit} size="sm">
                 <PaperPlaneRight size={16} className="mr-2" weight="fill" />
                 Post Comment
