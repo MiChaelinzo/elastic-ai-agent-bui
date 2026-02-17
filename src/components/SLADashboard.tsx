@@ -218,6 +218,8 @@ export function SLADashboard({
     const policy = policies.find(p => p.severity === severity)
     return policy?.target || 95
   }
+
+  const handleUpdateRule = (ruleId: string, enabled: boolean) => {
     setRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled } : r))
     toast.success(enabled ? 'Escalation rule enabled' : 'Escalation rule disabled')
   }
