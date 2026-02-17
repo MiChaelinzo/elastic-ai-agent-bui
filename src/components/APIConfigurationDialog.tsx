@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, Warning, SlackLogo, EnvelopeSimple } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { APIConfig } from '@/lib/auth-types'
+
+export interface APIConfig {
+  elasticsearchUrl: string
+  elasticsearchApiKey: string
+  slackWebhookUrl?: string
+  emailConfig?: {
+    smtpHost: string
+    smtpPort: number
+    fromEmail: string
+    apiKey: string
+  }
+}
 
 interface APIConfigurationDialogProps {
   isOpen: boolean
@@ -41,16 +52,16 @@ export function APIConfigurationDialog({
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [activeTab, setActiveTab] = useState('elasticsearch')
 
+  // Load initial config when dialog opens
   useEffect(() => {
     if (isOpen) {
       if (initialConfig) {
         setConfig({
           ...DEFAULT_CONFIG,
           ...initialConfig,
-          emailConfig: initialConfig.emailConfig 
-            ? { ...DEFAULT_CONFIG.emailConfig, ...initialConfig.emailConfig }
-            : DEFAULT_CONFIG.emailConfig
+          emailConfig: { ...DEFAULT_CONFIG.emailConfig, ...(initialConfig.emailConfig || {}) }
         })
+        // Enable email switch if smtp host is present
         setEnableEmail(!!initialConfig.emailConfig?.smtpHost)
       } else {
         setConfig(DEFAULT_CONFIG)
@@ -62,8 +73,8 @@ export function APIConfigurationDialog({
 
   const handleTestConnection = async () => {
     if (!config.elasticsearchUrl || !config.elasticsearchApiKey) {
-      toast.error('Missing Credentials', { 
-        description: 'Please enter both URL and API Key' 
+      toast.error('Missing Credentials', {
+        description: 'Please enter both URL and API Key'
       })
       return
     }
@@ -71,22 +82,22 @@ export function APIConfigurationDialog({
     setConnectionStatus('testing')
 
     try {
-      // Simulate API call
+      // Simulate API connection test
       await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Basic validation simulation
+
+      // Basic validation simulation for the demo
       const isValid = config.elasticsearchUrl.startsWith('http')
       
       if (isValid) {
         setConnectionStatus('success')
         toast.success('Connected', { description: 'Successfully connected to Elasticsearch' })
       } else {
-        throw new Error('Invalid URL')
+        throw new Error('Invalid URL protocol')
       }
     } catch (error) {
       setConnectionStatus('error')
-      toast.error('Connection Failed', { 
-        description: 'Please check your URL and API key' 
+      toast.error('Connection Failed', {
+        description: 'Please check your URL and API key'
       })
     }
   }
@@ -98,15 +109,15 @@ export function APIConfigurationDialog({
       return
     }
 
-    const finalConfig = {
+    const finalConfig: APIConfig = {
       ...config,
-      // If email is disabled, we might want to clear that config or leave it as optional
+      // If email is disabled, we might want to clear or ignore that part of the config
       emailConfig: enableEmail ? config.emailConfig : undefined
     }
 
     onSave(finalConfig)
+    toast.success('Configuration Saved', { description: 'Your system settings have been updated' })
     onClose()
-    toast.success('Saved', { description: 'Your integrations are now configured' })
   }
 
   return (
