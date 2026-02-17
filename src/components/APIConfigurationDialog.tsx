@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Database, CheckCircle, Warning, Plugs, EnvelopeSimple, SlackLogo, Key } from '@phosphor-icons/react'
-import { toast } from 'sonner'
-import type { APIConfig } from '@/lib/auth-types'
+  onSave: (config: APIConfig) => void
+}
+export function APIConfigurati
+    elasticsearchUrl: '',
 
-interface APIConfigurationDialogProps {
-  isOpen: boolean
-  onClose: () => void
+  })
+  const [testingC
+  const [enableEmail,
   onSave: (config: APIConfig) => void
   initialConfig?: APIConfig | null
 }
@@ -30,17 +30,17 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [enableEmail, setEnableEmail] = useState(false)
 
-  useEffect(() => {
+    await new Promi
     if (initialConfig) {
-      setConfig(initialConfig)
+    
       setEnableEmail(!!initialConfig.emailConfig)
     }
   }, [initialConfig])
 
   const handleTestConnection = async () => {
-    if (!config.elasticsearchUrl || !config.elasticsearchApiKey) {
+        description: 'Please check your URL and API key'
       toast.error('Please provide Elasticsearch URL and API key')
-      return
+
     }
 
     setTestingConnection(true)
@@ -54,78 +54,78 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
       setConnectionStatus('success')
       toast.success('Connection test successful!', {
         description: 'Your Elasticsearch cluster is reachable'
-      })
+
     } else {
-      setConnectionStatus('error')
+      description: 'Your integrati
       toast.error('Connection test failed', {
         description: 'Please check your URL and API key'
       })
     }
 
-    setTestingConnection(false)
-  }
 
-  const handleSave = () => {
-    if (!config.elasticsearchUrl || !config.elasticsearchApiKey) {
-      toast.error('Please provide required Elasticsearch configuration')
-      return
-    }
+   
 
-    if (enableEmail && config.emailConfig) {
-      if (!config.emailConfig.smtpHost || !config.emailConfig.fromEmail) {
-        toast.error('Please complete email configuration')
-        return
-      }
-    }
+                  placeholde
+                  onChange={(e) => setConfig({ ...config, elastics
+                <p className="text-xs text-muted-foreground">
+            
 
-    const finalConfig: APIConfig = {
-      ...config,
-      emailConfig: enableEmail ? config.emailConfig : undefined
-    }
 
-    onSave(finalConfig)
-    toast.success('API configuration saved!', {
-      description: 'Your integration settings have been updated'
-    })
-    onClose()
-  }
+                  id="es-key"
+                  placeholder="Enter your Elasticsearch API key"
+                  onChange={(e) => setConfig({ ...config, 
+              
+       
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Database size={24} weight="duotone" className="text-primary" />
-            API Configuration
-          </DialogTitle>
-          <DialogDescription>
-            Connect your Elasticsearch cluster and configure integrations
-          </DialogDescription>
-        </DialogHeader>
 
-        <Tabs defaultValue="elasticsearch" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="elasticsearch">
-              <Database size={16} className="mr-2" weight="duotone" />
-              Elasticsearch
-            </TabsTrigger>
-            <TabsTrigger value="notifications">
-              <Plugs size={16} className="mr-2" weight="duotone" />
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger value="advanced">
-              <Key size={16} className="mr-2" weight="duotone" />
-              Advanced
-            </TabsTrigger>
-          </TabsList>
+                  disabled={testingC
+                
+                  {testingConnection ? 'Testing...' : 'Test Con
 
-          <TabsContent value="elasticsearch" className="space-y-4 mt-4">
-            <Alert>
-              <Database size={20} className="text-primary" weight="duotone" />
-              <AlertDescription>
-                Connect to your Elasticsearch deployment to analyze real production data and metrics
-              </AlertDescription>
-            </Alert>
+
+                    <sp
+                )}
+                {connectionStatus === 'error' && (
+      
+             
+   
+
+          
+              <CardHeader>
+                  <SlackLogo size={20} weight="duotone" className="text-
+                </Card
+                  Receive incident alerts and approval requ
+              </CardHeader>
+                <div classNam
+                  <Input
+                    placehold
+                    onChange={(e) => setConfig({ ...config, slackWebhookU
+                  <p className
+                  </p>
+
+
+              <CardHeader>
+                  <div>
+                      <EnvelopeSimple size={20} weight="duotone" class
+                    </CardT
+                      Send
+                  </div>
+                    checked={enableEmail}
+                  />
+              </CardHeader
+                <CardContent className="sp
+                    <div className="space-y-2">
+                      
+                        pl
+                     
+
+                            smtpHost: e.target.value,
+                   
+                          }
+                      />
+                    <div className="space-y-2">
+                      <Input
+                    
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -237,7 +237,7 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                         placeholder="smtp.gmail.com"
                         value={config.emailConfig?.smtpHost || ''}
                         onChange={(e) => setConfig({
-                          ...config,
+
                           emailConfig: {
                             ...config.emailConfig,
                             smtpHost: e.target.value,
@@ -245,9 +245,9 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                             fromEmail: config.emailConfig?.fromEmail || '',
                             apiKey: config.emailConfig?.apiKey || ''
                           }
-                        })}
+
                       />
-                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="smtp-port">SMTP Port</Label>
                       <Input
@@ -268,15 +268,15 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
+
                     <Label htmlFor="from-email">From Email</Label>
-                    <Input
+
                       id="from-email"
                       type="email"
                       placeholder="alerts@company.com"
                       value={config.emailConfig?.fromEmail || ''}
                       onChange={(e) => setConfig({
-                        ...config,
+
                         emailConfig: {
                           ...config.emailConfig,
                           smtpHost: config.emailConfig?.smtpHost || '',
@@ -284,9 +284,9 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                           fromEmail: e.target.value,
                           apiKey: config.emailConfig?.apiKey || ''
                         }
-                      })}
+
                     />
-                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="email-key">SMTP API Key</Label>
                     <Input
@@ -294,35 +294,35 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                       type="password"
                       placeholder="Enter SMTP password or API key"
                       value={config.emailConfig?.apiKey || ''}
-                      onChange={(e) => setConfig({
+
                         ...config,
-                        emailConfig: {
+
                           ...config.emailConfig,
-                          smtpHost: config.emailConfig?.smtpHost || '',
+
                           smtpPort: config.emailConfig?.smtpPort || 587,
                           fromEmail: config.emailConfig?.fromEmail || '',
                           apiKey: e.target.value
-                        }
+
                       })}
-                    />
+
                   </div>
                 </CardContent>
               )}
-            </Card>
+
           </TabsContent>
 
           <TabsContent value="advanced" className="space-y-4 mt-4">
-            <Alert>
+
               <Key size={20} className="text-primary" weight="duotone" />
               <AlertDescription>
                 Advanced settings for authentication, rate limiting, and custom headers
-              </AlertDescription>
+
             </Alert>
 
             <Card>
-              <CardHeader>
+
                 <CardTitle className="text-base">Security & Performance</CardTitle>
-                <CardDescription>
+
                   Configure advanced options for your API connections
                 </CardDescription>
               </CardHeader>
@@ -330,11 +330,11 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                 <div className="flex items-start gap-2">
                   <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
                   <span>All API keys are encrypted and stored securely in your browser</span>
-                </div>
+
                 <div className="flex items-start gap-2">
                   <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
                   <span>Credentials are never transmitted to third-party services</span>
-                </div>
+
                 <div className="flex items-start gap-2">
                   <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
                   <span>Direct connections to your Elasticsearch cluster only</span>
@@ -346,17 +346,17 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
 
-        <DialogFooter>
+
+
           <Button variant="outline" onClick={onClose}>
-            Cancel
+
           </Button>
-          <Button onClick={handleSave}>
+
             Save Configuration
-          </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+
 }
