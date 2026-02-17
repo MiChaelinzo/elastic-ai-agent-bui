@@ -37,9 +37,10 @@ interface IncidentCardProps {
   onSelect?: (selected: boolean) => void
   selectionMode?: boolean
   metricCorrelationBadge?: React.ReactNode
+  similarArticlesBadge?: React.ReactNode
 }
 
-export function IncidentCard({ incident, onClick, selected = false, onSelect, selectionMode = false, metricCorrelationBadge }: IncidentCardProps) {
+export function IncidentCard({ incident, onClick, selected = false, onSelect, selectionMode = false, metricCorrelationBadge, similarArticlesBadge }: IncidentCardProps) {
   const StatusIcon = statusIcons[incident.status]
   const template = incident.templateId ? getTemplateById(incident.templateId) : null
   
@@ -123,6 +124,8 @@ export function IncidentCard({ incident, onClick, selected = false, onSelect, se
           )}
           
           {metricCorrelationBadge && metricCorrelationBadge}
+          
+          {similarArticlesBadge && similarArticlesBadge}
           
           <span className="text-xs text-muted-foreground ml-auto">
             {formatDate(incident.createdAt)}

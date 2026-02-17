@@ -105,6 +105,9 @@ import { createAuditLog } from '@/lib/security-compliance'
 import { KnowledgeBase } from '@/components/KnowledgeBase'
 import { KnowledgeArticleViewer } from '@/components/KnowledgeArticleViewer'
 import { GenerateArticleDialog } from '@/components/GenerateArticleDialog'
+import { SimilarArticlesBadge } from '@/components/SimilarArticlesBadge'
+import { ArticleGenerationPrompt } from '@/components/ArticleGenerationPrompt'
+import { RelatedKnowledge } from '@/components/RelatedKnowledge'
 import { 
   type KnowledgeArticle, 
   generateKnowledgeArticle,
@@ -245,6 +248,8 @@ function App() {
   const [showArticleViewer, setShowArticleViewer] = useState(false)
   const [showGenerateArticle, setShowGenerateArticle] = useState(false)
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false)
+  const [showArticlePrompt, setShowArticlePrompt] = useState(false)
+  const [incidentForArticle, setIncidentForArticle] = useState<Incident | null>(null)
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -494,8 +499,32 @@ function App() {
       )
 
       toast.success('Incident resolved successfully!', {
-        description: result.message
+        description: result.message,
+        action: {
+          label: 'Generate Article',
+          onClick: () => {
+            const resolvedIncident = (incidents || []).find(inc => inc.id === incident.id)
+            if (resolvedIncident) {
+              handleGenerateArticle(resolvedIncident)
+            }
+          }
+        }
       })
+      
+      const resolvedIncident = {
+        ...incident,
+        status: 'resolved' as const,
+        resolution: result.message,
+        updatedAt: resolvedAt,
+        metricsImpact: {
+          timeToDetect: 12,
+          timeToResolve,
+          stepsAutomated: 6
+        }
+      }
+      
+      setIncidentForArticle(resolvedIncident)
+      setShowArticlePrompt(true)
     } else {
       toast.error('Workflow execution failed')
     }
@@ -1074,6 +1103,7 @@ function App() {
 
   const handleGenerateArticle = async (incident: Incident) => {
     setIsGeneratingArticle(true)
+    setShowArticlePrompt(false)
     try {
       const article = await generateKnowledgeArticle(incident)
       setKnowledgeArticles((current) => [article, ...(current || [])])
@@ -1104,7 +1134,13 @@ function App() {
       })
     } finally {
       setIsGeneratingArticle(false)
+      setIncidentForArticle(null)
     }
+  }
+
+  const handleDismissArticlePrompt = () => {
+    setShowArticlePrompt(false)
+    setIncidentForArticle(null)
   }
 
   const handleArticleSelect = (article: KnowledgeArticle) => {
@@ -1561,6 +1597,15 @@ function App() {
                         />
                       ) : undefined
                     }
+                    similarArticlesBadge={
+                      !selectionMode && (knowledgeArticles || []).length > 0 && incident.status === 'new' ? (
+                        <SimilarArticlesBadge
+                          incident={incident}
+                          articles={knowledgeArticles || []}
+                          onArticleClick={handleArticleSelect}
+                        />
+                      ) : undefined
+                    }
                   />
                 ))
               )}
@@ -1589,6 +1634,15 @@ function App() {
                           incident={incident}
                           metrics={externalMetrics}
                           onClick={() => handleShowMetricCorrelation(incident)}
+                        />
+                      ) : undefined
+                    }
+                    similarArticlesBadge={
+                      !selectionMode && (knowledgeArticles || []).length > 0 && incident.status === 'new' ? (
+                        <SimilarArticlesBadge
+                          incident={incident}
+                          articles={knowledgeArticles || []}
+                          onArticleClick={handleArticleSelect}
                         />
                       ) : undefined
                     }
@@ -1627,6 +1681,15 @@ function App() {
                             incident={incident}
                             metrics={externalMetrics}
                             onClick={() => handleShowMetricCorrelation(incident)}
+                          />
+                        ) : undefined
+                      }
+                      similarArticlesBadge={
+                        !selectionMode && (knowledgeArticles || []).length > 0 && incident.status === 'new' ? (
+                          <SimilarArticlesBadge
+                            incident={incident}
+                            articles={knowledgeArticles || []}
+                            onArticleClick={handleArticleSelect}
                           />
                         ) : undefined
                       }
@@ -1828,6 +1891,15 @@ function App() {
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {(knowledgeArticles || []).length > 0 && (
+                  <RelatedKnowledge
+                    incident={selectedIncident}
+                    articles={knowledgeArticles || []}
+                    onArticleClick={handleArticleSelect}
+                    maxArticles={3}
+                  />
+                )}
+
                 {externalMetrics.length > 0 && (
                   <div>
                     <Button
@@ -2282,6 +2354,15 @@ function App() {
         onGenerate={handleGenerateArticle}
         isGenerating={isGeneratingArticle}
       />
+
+      {showArticlePrompt && incidentForArticle && (
+        <ArticleGenerationPrompt
+          incident={incidentForArticle}
+          onGenerate={() => handleGenerateArticle(incidentForArticle)}
+          onDismiss={handleDismissArticlePrompt}
+          isGenerating={isGeneratingArticle}
+        />
+      )}
     </div>
   )
 }
