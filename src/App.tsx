@@ -836,7 +836,7 @@ function App() {
         setAgentTeams([team1, team2])
       }
     }
-  }, [agents, agentTeams, setAgentTeams])
+  }, [agents.length, agentTeams?.length])
 
   useEffect(() => {
     const loadCurrentUser = async () => {
