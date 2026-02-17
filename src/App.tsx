@@ -838,6 +838,18 @@ function App() {
     }
   }, [agents.length, agentTeams?.length])
 
+  const handleLogout = useCallback(() => {
+    setAuthState(() => ({
+      isAuthenticated: false,
+      user: null,
+      mode: 'demo',
+      hasCompletedOnboarding: false
+    }))
+    toast.success('Signed out successfully', {
+      description: 'You have been logged out'
+    })
+  }, [setAuthState])
+
   useEffect(() => {
     const loadCurrentUser = async () => {
       try {
