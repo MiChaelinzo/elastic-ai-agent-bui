@@ -6,6 +6,23 @@ An enterprise-grade intelligent DevOps incident response system powered by multi
 
 This application demonstrates how multiple specialized AI agents (Detector, Analyzer, Resolver, Verifier) can collaborate to automatically detect, investigate, and resolve DevOps incidents with comprehensive human oversight, security controls, and enterprise integrations.
 
+## 🚀 Latest Update - Enterprise Features
+
+**NEW:** 6 major enterprise features have been added! See the comprehensive documentation suite:
+- 📘 [FEATURE_UPGRADES.md](./FEATURE_UPGRADES.md) - Technical architecture & data models
+- 📗 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Step-by-step integration instructions
+- 📙 [README_FEATURES.md](./README_FEATURES.md) - Feature overview & capabilities
+- 📕 [EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md) - Business value & ROI analysis
+- 📓 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick reference card for developers
+
+### New Enterprise Features:
+1. **SLA Management** - Real-time tracking with compliance reporting
+2. **Knowledge Base** - AI-generated articles from resolved incidents
+3. **Incident Timeline** - Complete audit trails with event correlation
+4. **Team Collaboration** - Comments, mentions, and reactions
+5. **Advanced Search** - AI-powered suggestions with multi-field search
+6. **Dependency Mapping** - Service impact analysis with cascade detection
+
 ## ✨ Key Features
 
 ### 🤝 Advanced Agent Hierarchy & Team Management **NEW!**
@@ -120,6 +137,52 @@ This application demonstrates how multiple specialized AI agents (Detector, Anal
 - **Real-Time Search**: Instant filtering across incident titles and descriptions
 - **Multi-Criteria Filters**: Combine status, severity, and search queries
 - **Clear Filters**: Quick reset to default view
+- **AI-Powered Suggestions**: Smart query recommendations as you type **NEW!**
+- **Multi-Field Search**: Search across titles, descriptions, solutions, and reasoning **NEW!**
+- **Relevance Scoring**: Results ranked by match quality **NEW!**
+- **Filter Syntax**: Use `severity:critical` and `status:resolved` syntax **NEW!**
+
+### 📋 SLA Management & Compliance **NEW!**
+- **Configurable Policies**: Set response and resolution times per severity level
+- **Real-Time Tracking**: Monitor progress with countdown timers and progress bars
+- **Status Indicators**: Visual cues for on-track, at-risk, and breached SLAs
+- **Compliance Reporting**: Overall and per-severity compliance rates
+- **Automatic Escalation**: Trigger alerts when approaching deadlines
+- **Business Hours**: Support for 24/7 or business-hours-only policies
+- **Historical Analysis**: Track compliance trends over time
+
+### 📚 AI-Powered Knowledge Base **NEW!**
+- **Auto-Generation**: Automatically create documentation from resolved incidents using GPT-4
+- **Full-Text Search**: Find relevant articles instantly with relevance scoring
+- **Article Ratings**: Community-driven helpfulness ratings
+- **View Tracking**: Monitor article popularity and usage
+- **Similar Articles**: AI suggestions for related content
+- **Category Organization**: Incident, solution, procedure, troubleshooting, best-practice
+- **Manual Creation**: Add custom articles alongside auto-generated content
+
+### ⏱️ Incident Timeline & Event Correlation **NEW!**
+- **Complete Audit Trail**: Chronological record of all incident activities
+- **Event Correlation**: Automatically identify causal relationships between events
+- **Visual Timeline**: Color-coded events with icons and metadata
+- **Actor Tracking**: Know exactly who (user/agent/system) did what and when
+- **Export Capability**: Generate timeline reports for compliance and analysis
+
+### 💬 Real-Time Team Collaboration **NEW!**
+- **Threaded Comments**: Full conversation threads within incident context
+- **@Mentions**: Notify team members with @username syntax
+- **Emoji Reactions**: Quick feedback with 👍❤️🎉👀🚀✅
+- **Nested Replies**: Multi-level conversation threading
+- **Edit History**: Track comment modifications with timestamps
+- **Activity Indicators**: See comment counts and recent activity
+
+### 🔗 Service Dependency Mapping **NEW!**
+- **Automatic Detection**: Identify affected services from incident descriptions
+- **Impact Analysis**: Calculate downstream effects and blast radius
+- **User Estimates**: Quantify potential user impact
+- **Business Impact**: Assess critical/high/medium/low business risk
+- **Cascade Risk**: Calculate probability of failures spreading
+- **Actionable Recommendations**: Get specific guidance based on impact
+- **13 Pre-Configured Services**: API Gateway, Auth, Database, Cache, Storage, and more
 
 ### Data Export & Reporting
 - **Multiple Formats**: Export incidents as JSON, CSV, or text reports
