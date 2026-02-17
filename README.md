@@ -4,26 +4,51 @@ An enterprise-grade intelligent DevOps incident response system powered by multi
 
 ## 🎯 Overview
 
-This application demonstrates how multiple specialized AI agents (Detector, Analyzer, Resolver, Verifier) can collaborate to automatically detect, investigate, and resolve DevOps incidents with comprehensive human oversight, security controls, and enterprise integrations.
+This application demonstrates how multiple specialized AI agents (Detector, Analyzer, Resolver, Verifier) can collaborate to automatically detect, investigate, and resolve DevOps incidents with comprehensive human oversight, security controls, and enterprise integrations. **Now featuring a complete authentication system and flexible deployment modes for both evaluation and production use.**
 
-## 🚀 Latest Update - Enterprise Features
+## 🚀 Latest Update - Authentication & API Integration
 
-**NEW:** 6 major enterprise features have been added! See the comprehensive documentation suite:
+**NEW:** Complete authentication flow and API integration system!
+- 🔐 **Login System** - Sign in with email or continue as guest
+- 🎭 **Welcome Screen** - Beautiful onboarding with mode selection
+- 🔌 **API Configuration** - Connect to your Elasticsearch cluster
+- 🔄 **Mode Switching** - Seamlessly switch between Demo and API modes
+- 📊 **Data Source Management** - Visual indicators and status monitoring
+- 🔒 **Secure Storage** - Encrypted credentials stored locally
+
+See [AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md) for complete documentation.
+
+## 🚀 Enterprise Features
+
+**Previous Updates:** 6 major enterprise features! See the comprehensive documentation suite:
 - 📘 [FEATURE_UPGRADES.md](./FEATURE_UPGRADES.md) - Technical architecture & data models
 - 📗 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Step-by-step integration instructions
 - 📙 [README_FEATURES.md](./README_FEATURES.md) - Feature overview & capabilities
 - 📕 [EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md) - Business value & ROI analysis
 - 📓 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick reference card for developers
+- 🔐 [AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md) - Authentication & API integration guide
 
-### New Enterprise Features:
-1. **SLA Management** - Real-time tracking with compliance reporting
-2. **Knowledge Base** - AI-generated articles from resolved incidents
-3. **Incident Timeline** - Complete audit trails with event correlation
-4. **Team Collaboration** - Comments, mentions, and reactions
-5. **Advanced Search** - AI-powered suggestions with multi-field search
-6. **Dependency Mapping** - Service impact analysis with cascade detection
+### Enterprise Features:
+1. **Authentication & API Integration** - Flexible deployment with demo or production modes
+2. **SLA Management** - Real-time tracking with compliance reporting
+3. **Knowledge Base** - AI-generated articles from resolved incidents
+4. **Incident Timeline** - Complete audit trails with event correlation
+5. **Team Collaboration** - Comments, mentions, and reactions
+6. **Advanced Search** - AI-powered suggestions with multi-field search
+7. **Dependency Mapping** - Service impact analysis with cascade detection
 
 ## ✨ Key Features
+
+### 🔐 Authentication & Deployment Modes **NEW!**
+- **Welcome Screen**: Elegant onboarding experience with feature highlights
+- **Login System**: Sign in with email/password or continue as guest
+- **Demo Mode**: Instant access with pre-loaded sample data for evaluation
+- **API Mode**: Connect to your Elasticsearch cluster for production use
+- **Mode Switching**: Seamlessly toggle between demo and API modes from Settings
+- **Visual Indicators**: Clear badges showing current mode throughout the UI
+- **Secure Storage**: Encrypted credentials stored locally in browser
+- **API Configuration**: Comprehensive setup for Elasticsearch, Slack, and Email integrations
+- **Connection Testing**: Real-time validation of API connections before saving
 
 ### 🤝 Advanced Agent Hierarchy & Team Management **NEW!**
 - **Agent Teams**: Organize agents into specialized teams with supervisors

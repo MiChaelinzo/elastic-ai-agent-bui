@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
+import { WelcomeScreen } from '@/components/WelcomeScreen'
+import { LoginScreen } from '@/components/LoginScreen'
+import { APIConfigurationDialog } from '@/components/APIConfigurationDialog'
+import { ModeSwitcher } from '@/components/ModeSwitcher'
+import { UserMenu } from '@/components/UserMenu'
+import type { AuthState, APIConfig, User } from '@/lib/auth-types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -32,7 +38,7 @@ import { CollaborationVisualization } from '@/components/CollaborationVisualizat
 import { AgentActivityFeed } from '@/components/AgentActivityFeed'
 import { ElasticsearchDashboard } from '@/components/ElasticsearchDashboard'
 import { SLADashboard } from '@/components/SLADashboard'
-import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database, Microphone, Book, Target } from '@phosphor-icons/react'
+import { Lightning, Plus, GitBranch, ChartLine, CheckCircle, Sparkle, FunnelSimple, Gear, ShieldCheck, Bell, PaintBrush, Brain, Sliders, Broadcast, Database, Microphone, Book, Target, Play } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Incident, Agent, ReasoningStep, AgentType, IncidentSeverity, IncidentStatus, ConfidenceSettings, NotificationSettings, BackgroundSettings } from '@/lib/types'
 import { simulateAgentReasoning, executeWorkflow, checkConfidenceThresholds } from '@/lib/agent-engine'
@@ -181,6 +187,17 @@ function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
 }
 
 function App() {
+  const [authState, setAuthState] = useKV<AuthState>('auth-state', {
+    isAuthenticated: false,
+    user: null,
+    mode: 'demo',
+    hasCompletedOnboarding: false
+  })
+  
+  const [apiConfig, setApiConfig] = useKV<APIConfig | null>('api-config', null)
+  const [showAPIConfig, setShowAPIConfig] = useState(false)
+  const [showModeSelection, setShowModeSelection] = useState(false)
+  
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
@@ -218,7 +235,7 @@ function App() {
     showDataFlows: true
   })
   
-  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly'>('confidence')
+  const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly' | 'mode'>('confidence')
   
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<IncidentStatus | 'all'>('all')
@@ -1418,6 +1435,121 @@ function App() {
     }
   }
 
+  const handleLogin = async (email: string, name: string) => {
+    const user: User = {
+      id: Date.now().toString(),
+      email,
+      name,
+      role: 'admin',
+      createdAt: Date.now()
+    }
+
+    setAuthState((current) => ({
+      isAuthenticated: true,
+      user,
+      mode: current?.mode || 'demo',
+      hasCompletedOnboarding: current?.hasCompletedOnboarding || false
+    }))
+  }
+
+  const handleSkipLogin = () => {
+    setAuthState((current) => ({
+      isAuthenticated: true,
+      user: {
+        id: 'guest',
+        email: 'guest@demo.local',
+        name: 'Guest User',
+        role: 'viewer',
+        createdAt: Date.now()
+      },
+      mode: current?.mode || 'demo',
+      hasCompletedOnboarding: current?.hasCompletedOnboarding || false
+    }))
+  }
+
+  const handleSelectMode = (mode: 'demo' | 'api') => {
+    if (mode === 'api') {
+      setShowAPIConfig(true)
+    } else {
+      setAuthState((current) => ({
+        isAuthenticated: current?.isAuthenticated || false,
+        user: current?.user || null,
+        mode: 'demo',
+        hasCompletedOnboarding: true
+      }))
+      
+      if ((incidents || []).length === 0) {
+        handleLoadSampleData()
+      }
+    }
+  }
+
+  const handleSaveAPIConfig = (config: APIConfig) => {
+    setApiConfig(config)
+    setAuthState((current) => ({
+      isAuthenticated: current?.isAuthenticated || false,
+      user: current?.user || null,
+      mode: 'api',
+      hasCompletedOnboarding: true
+    }))
+    setShowAPIConfig(false)
+  }
+
+  const handleSwitchMode = (newMode: 'demo' | 'api') => {
+    if (newMode === 'api' && !apiConfig) {
+      setShowAPIConfig(true)
+    } else {
+      setAuthState((current) => ({
+        isAuthenticated: current?.isAuthenticated || false,
+        user: current?.user || null,
+        mode: newMode,
+        hasCompletedOnboarding: current?.hasCompletedOnboarding || false
+      }))
+      
+      if (newMode === 'demo' && (incidents || []).length === 0) {
+        handleLoadSampleData()
+      }
+    }
+  }
+
+  const handleLogout = () => {
+    setAuthState({
+      isAuthenticated: false,
+      user: null,
+      mode: 'demo',
+      hasCompletedOnboarding: false
+    })
+    toast.success('Signed out successfully', {
+      description: 'You have been logged out'
+    })
+  }
+
+  if (!authState?.isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} onSkip={handleSkipLogin} />
+  }
+
+  if (!authState?.hasCompletedOnboarding) {
+    return (
+      <>
+        <WelcomeScreen onSelectMode={handleSelectMode} />
+        <APIConfigurationDialog
+          isOpen={showAPIConfig}
+          onClose={() => {
+            setShowAPIConfig(false)
+            setAuthState({
+              isAuthenticated: authState?.isAuthenticated || false,
+              user: authState?.user || null,
+              mode: 'demo',
+              hasCompletedOnboarding: true
+            })
+          }}
+          onSave={handleSaveAPIConfig}
+          initialConfig={apiConfig}
+        />
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
@@ -1438,12 +1570,35 @@ function App() {
                 <Lightning size={28} weight="duotone" className="text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Elastic Agent Orchestrator</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold">Elastic Agent Orchestrator</h1>
+                  <Badge 
+                    variant={authState?.mode === 'api' ? 'default' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {authState?.mode === 'api' ? (
+                      <>
+                        <Database size={12} className="mr-1" weight="fill" />
+                        API Mode
+                      </>
+                    ) : (
+                      <>
+                        <Play size={12} className="mr-1" weight="fill" />
+                        Demo Mode
+                      </>
+                    )}
+                  </Badge>
+                </div>
                 <p className="text-sm text-muted-foreground">Multi-Agent DevOps Incident Response</p>
               </div>
             </div>
             
             <div className="flex items-center gap-3">
+              <UserMenu 
+                user={authState?.user || null} 
+                onSettings={() => setShowSettings(true)}
+                onLogout={handleLogout}
+              />
               <ThemeToggle />
               <Button 
                 onClick={() => setShowSLADashboard(true)}
@@ -2372,8 +2527,12 @@ function App() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly')} className="py-4">
-            <TabsList className="grid w-full grid-cols-6">
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly' | 'mode')} className="py-4">
+            <TabsList className="grid w-full grid-cols-7">
+              <TabsTrigger value="mode" className="flex items-center gap-2">
+                <Database size={18} weight="duotone" />
+                Data Source
+              </TabsTrigger>
               <TabsTrigger value="confidence" className="flex items-center gap-2">
                 <ShieldCheck size={18} weight="duotone" />
                 Agent Settings
@@ -2399,6 +2558,15 @@ function App() {
                 Background
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="mode" className="space-y-4 mt-6">
+              <ModeSwitcher
+                currentMode={authState?.mode || 'demo'}
+                apiConfig={apiConfig || null}
+                onSwitchToDemo={() => handleSwitchMode('demo')}
+                onConfigureAPI={() => setShowAPIConfig(true)}
+              />
+            </TabsContent>
 
             <TabsContent value="confidence" className="space-y-4 mt-6">
               {confidenceSettings && (
@@ -2479,6 +2647,13 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <APIConfigurationDialog
+        isOpen={showAPIConfig}
+        onClose={() => setShowAPIConfig(false)}
+        onSave={handleSaveAPIConfig}
+        initialConfig={apiConfig || null}
+      />
 
       <ApprovalDialog
         incident={incidentPendingApproval}

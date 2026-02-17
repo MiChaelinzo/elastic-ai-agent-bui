@@ -1,17 +1,39 @@
 # Planning Guide
 
-An enterprise-grade intelligent DevOps Incident Response Platform that automates incident detection, diagnosis, and resolution using multi-agent orchestration with Elastic Agent Builder's reasoning models and tools. Now enhanced with SLA management, knowledge base, real-time collaboration, dependency mapping, and advanced analytics.
+An enterprise-grade intelligent DevOps Incident Response Platform that automates incident detection, diagnosis, and resolution using multi-agent orchestration with Elastic Agent Builder's reasoning models and tools. Now enhanced with SLA management, knowledge base, real-time collaboration, dependency mapping, advanced analytics, and flexible deployment modes (demo or API integration).
 
 **Experience Qualities**:
 1. **Intelligent** - The system should feel like having an expert DevOps engineer analyzing and resolving issues autonomously with AI-powered insights
 2. **Transparent** - Every agent decision, reasoning step, and action should be visible and explainable to build trust with complete audit trails
 3. **Responsive** - Real-time updates and instant feedback as agents work through incident response workflows with live collaboration
 4. **Enterprise-Ready** - SLA tracking, compliance reporting, knowledge management, and team collaboration for production environments
+5. **Flexible** - Seamlessly switch between demo mode for evaluation and API mode for production deployments
 
 **Complexity Level**: Complex Application (advanced functionality, multiple views, enterprise features)
-This showcases multi-agent orchestration where different specialized agents (Detector, Analyzer, Resolver, Verifier) collaborate to handle incident response workflows, demonstrating the full power of Elastic Agent Builder's reasoning capabilities and tool integrations. Now includes enterprise features for operational excellence, team collaboration, and business intelligence.
+This showcases multi-agent orchestration where different specialized agents (Detector, Analyzer, Resolver, Verifier) collaborate to handle incident response workflows, demonstrating the full power of Elastic Agent Builder's reasoning capabilities and tool integrations. Now includes enterprise features for operational excellence, team collaboration, business intelligence, and flexible data source configuration.
 
 ## Essential Features
+
+**Welcome Screen & Authentication**
+- Functionality: Professional welcome screen with mode selection (Demo vs API) and user authentication
+- Purpose: Provides smooth onboarding experience and allows users to choose between evaluation and production modes
+- Trigger: First-time application launch or when not authenticated
+- Progression: View welcome screen → Choose Demo mode (instant access) or API mode (configure connections) → Optionally sign in or continue as guest → Begin using platform
+- Success criteria: Users can easily understand their options, complete onboarding in under 30 seconds, and access all features appropriate to their chosen mode
+
+**API Configuration & Integration**
+- Functionality: Comprehensive API configuration dialog for connecting to Elasticsearch clusters, Slack, and email services
+- Purpose: Enables production deployment with real data sources and notification integrations
+- Trigger: User selects API mode from welcome screen or switches mode in Settings
+- Progression: Open API config → Enter Elasticsearch URL and API key → Test connection → Optionally configure Slack webhook → Optionally configure email SMTP → Save configuration → Switch to API mode
+- Success criteria: Users can successfully connect to their Elasticsearch deployment, test the connection, configure integrations, and see real-time data flowing into the platform
+
+**Mode Switching & Data Source Management**
+- Functionality: Switch between Demo mode (sample data) and API mode (production data) at any time from Settings
+- Purpose: Allows users to evaluate features with sample data before connecting production systems, or switch back to demo for training
+- Trigger: User clicks Settings → Data Source tab
+- Progression: View current mode and configuration → Choose to switch modes → If switching to API, configure or update connections → Confirm switch → Platform updates to use selected data source
+- Success criteria: Users can seamlessly switch between modes without data loss, see clear indicators of current mode throughout the UI, and understand the differences between modes
 
 **Multi-Agent Orchestration System**
 - Functionality: Coordinates four specialized agents (Detector, Analyzer, Resolver, Verifier) that work together to handle incidents
