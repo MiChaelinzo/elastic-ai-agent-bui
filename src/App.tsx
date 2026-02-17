@@ -187,7 +187,7 @@ function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
 }
 
 function App() {
-  const [authState, setAuthState] = useKV<AuthState>('auth-state', {
+  const [authState, setAuthState, deleteAuthState] = useKV<AuthState>('auth-state', {
     isAuthenticated: false,
     user: null,
     mode: 'demo',
@@ -867,6 +867,25 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+        e.preventDefault()
+        setAuthState(() => ({
+          isAuthenticated: false,
+          user: null,
+          mode: 'demo',
+          hasCompletedOnboarding: false
+        }))
+        toast.info('App reset to login screen', {
+          description: 'Press Ctrl+Shift+R (or Cmd+Shift+R) to reset anytime'
+        })
+      }
+    }
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [setAuthState])
+
+  useEffect(() => {
     if ((incidents || []).length > 0) {
       const earliest = Math.min(...(incidents || []).map(i => i.createdAt))
       const latest = Math.max(...(incidents || []).map(i => i.createdAt))
@@ -1450,6 +1469,10 @@ function App() {
       mode: current?.mode || 'demo',
       hasCompletedOnboarding: current?.hasCompletedOnboarding || false
     }))
+    
+    toast.success('Welcome to Elastic Agent Orchestrator!', {
+      description: 'Tip: Use Ctrl+Shift+R to reset the app anytime'
+    })
   }
 
   const handleSkipLogin = () => {
@@ -1465,6 +1488,10 @@ function App() {
       mode: current?.mode || 'demo',
       hasCompletedOnboarding: current?.hasCompletedOnboarding || false
     }))
+    
+    toast.success('Welcome, Guest!', {
+      description: 'Tip: Use Ctrl+Shift+R to reset the app anytime'
+    })
   }
 
   const handleSelectMode = (mode: 'demo' | 'api') => {
@@ -1472,8 +1499,8 @@ function App() {
       setShowAPIConfig(true)
     } else {
       setAuthState((current) => ({
-        isAuthenticated: current?.isAuthenticated || false,
-        user: current?.user || null,
+        isAuthenticated: current?.isAuthenticated ?? false,
+        user: current?.user ?? null,
         mode: 'demo',
         hasCompletedOnboarding: true
       }))
@@ -1487,8 +1514,8 @@ function App() {
   const handleSaveAPIConfig = (config: APIConfig) => {
     setApiConfig(config)
     setAuthState((current) => ({
-      isAuthenticated: current?.isAuthenticated || false,
-      user: current?.user || null,
+      isAuthenticated: current?.isAuthenticated ?? false,
+      user: current?.user ?? null,
       mode: 'api',
       hasCompletedOnboarding: true
     }))
@@ -1500,10 +1527,10 @@ function App() {
       setShowAPIConfig(true)
     } else {
       setAuthState((current) => ({
-        isAuthenticated: current?.isAuthenticated || false,
-        user: current?.user || null,
+        isAuthenticated: current?.isAuthenticated ?? false,
+        user: current?.user ?? null,
         mode: newMode,
-        hasCompletedOnboarding: current?.hasCompletedOnboarding || false
+        hasCompletedOnboarding: current?.hasCompletedOnboarding ?? false
       }))
       
       if (newMode === 'demo' && (incidents || []).length === 0) {
@@ -1513,12 +1540,12 @@ function App() {
   }
 
   const handleLogout = () => {
-    setAuthState({
+    setAuthState(() => ({
       isAuthenticated: false,
       user: null,
       mode: 'demo',
       hasCompletedOnboarding: false
-    })
+    }))
     toast.success('Signed out successfully', {
       description: 'You have been logged out'
     })
@@ -1536,15 +1563,15 @@ function App() {
           isOpen={showAPIConfig}
           onClose={() => {
             setShowAPIConfig(false)
-            setAuthState({
-              isAuthenticated: authState?.isAuthenticated || false,
-              user: authState?.user || null,
+            setAuthState((current) => ({
+              isAuthenticated: current?.isAuthenticated ?? false,
+              user: current?.user ?? null,
               mode: 'demo',
               hasCompletedOnboarding: true
-            })
+            }))
           }}
           onSave={handleSaveAPIConfig}
-          initialConfig={apiConfig}
+          initialConfig={apiConfig || undefined}
         />
       </>
     )
