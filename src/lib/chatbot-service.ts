@@ -85,6 +85,17 @@ export function generateRecommendations(
     })
   }
 
+  const resolvedIncidents = incidents.filter(i => i.status === 'resolved')
+  if (resolvedIncidents.length > 0) {
+    recommendations.push({
+      id: 'rec-knowledge-base',
+      title: 'Browse Knowledge Base',
+      description: `View ${resolvedIncidents.length} potential knowledge articles`,
+      action: 'open-knowledge-base',
+      category: 'knowledge'
+    })
+  }
+
   recommendations.push({
     id: 'rec-esql-query',
     title: 'Run ES|QL Query',

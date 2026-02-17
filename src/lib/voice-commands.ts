@@ -5,6 +5,7 @@ export type VoiceCommandCategory =
   | 'analytics' 
   | 'settings' 
   | 'system'
+  | 'knowledge'
 
 export interface VoiceCommand {
   id: string
@@ -399,6 +400,32 @@ export const voiceCommands: VoiceCommand[] = [
     category: 'settings',
     description: 'Open voice biometrics manager',
     action: 'open-biometrics'
+  },
+  {
+    id: 'open-knowledge-base',
+    phrases: [
+      'open knowledge base',
+      'show knowledge base',
+      'view articles',
+      'browse knowledge',
+      'knowledge articles'
+    ],
+    category: 'knowledge',
+    description: 'Open the knowledge base dashboard',
+    action: 'open-knowledge-base'
+  },
+  {
+    id: 'generate-article',
+    phrases: [
+      'generate article',
+      'create article',
+      'generate knowledge article',
+      'create knowledge base entry',
+      'document incident'
+    ],
+    category: 'knowledge',
+    description: 'Generate a knowledge article from a resolved incident',
+    action: 'generate-article'
   }
 ]
 
@@ -491,5 +518,6 @@ export const voiceCommandCategories: Record<VoiceCommandCategory, string> = {
   agent: 'Agent Operations',
   analytics: 'Analytics & Insights',
   settings: 'Settings & Preferences',
-  system: 'System Controls'
+  system: 'System Controls',
+  knowledge: 'Knowledge Base'
 }

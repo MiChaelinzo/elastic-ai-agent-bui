@@ -1,309 +1,507 @@
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
-import type { KnowledgeArticle } from '@/lib/knowledge-base'
-import { searchKnowledgeBase, getKnowledgeBaseStats, rateArticle, incrementArticleView } from '@/lib/knowledge-base'
-import { Book, MagnifyingGlass, ThumbsUp, ThumbsDown, Eye, Sparkle, Tag, ChartBar } from '@phosphor-icons/react'
+import { Progress } from '@/components/ui/progress'
+import { 
+  Book, 
+  MagnifyingGlass, 
+  Sparkle, 
+  ThumbsUp, 
+  ThumbsDown, 
+  Eye, 
+  Lightning,
+  ChartBar,
+  Tag,
+  Calendar,
+  FunnelSimple,
+  CheckCircle
+} from '@phosphor-icons/react'
 import { formatDate } from '@/lib/utils'
+import { 
+  type KnowledgeArticle, 
+  getKnowledgeBaseStats,
+  searchKnowledgeBase 
+} from '@/lib/knowledge-base'
+import type { IncidentSeverity } from '@/lib/types'
 
 interface KnowledgeBaseProps {
   articles: KnowledgeArticle[]
-  onArticleRate: (articleId: string, helpful: boolean) => void
-  onArticleView: (articleId: string) => void
+  onArticleSelect: (article: KnowledgeArticle) => void
+  onViewArticle: (articleId: string) => void
+  onRateArticle: (articleId: string, helpful: boolean) => void
+  onGenerateFromIncident?: () => void
+  isGenerating?: boolean
 }
 
-export function KnowledgeBase({ articles, onArticleRate, onArticleView }: KnowledgeBaseProps) {
+export function KnowledgeBase({
+  articles,
+  onArticleSelect,
+  onViewArticle,
+  onRateArticle,
+  onGenerateFromIncident,
+  isGenerating = false
+}: KnowledgeBaseProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [selectedArticle, setSelectedArticle] = useState<KnowledgeArticle | null>(null)
-
-  const filteredArticles = useMemo(() => {
-    const categoryFilter = selectedCategory === 'all' ? undefined : selectedCategory
-    return searchKnowledgeBase(articles, searchQuery, {
-      category: categoryFilter
-    })
-  }, [articles, searchQuery, selectedCategory])
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterSeverity, setFilterSeverity] = useState<IncidentSeverity | 'all'>('all')
+  const [sortBy, setSortBy] = useState<'recent' | 'views' | 'helpful'>('recent')
 
   const stats = useMemo(() => getKnowledgeBaseStats(articles), [articles])
 
-  const categories = ['all', 'incident', 'solution', 'procedure', 'troubleshooting', 'best-practice']
+  const filteredArticles = useMemo(() => {
+    const filters = {
+      category: filterCategory !== 'all' ? filterCategory : undefined,
+      severity: filterSeverity !== 'all' ? filterSeverity : undefined
+    }
 
-  const handleArticleClick = (article: KnowledgeArticle) => {
-    setSelectedArticle(article)
-    onArticleView(article.id)
+    let results = searchKnowledgeBase(articles, searchQuery, filters)
+
+    switch (sortBy) {
+      case 'views':
+        results.sort((a, b) => b.views - a.views)
+        break
+      case 'helpful':
+        results.sort((a, b) => {
+          const aScore = a.helpful / Math.max(1, a.helpful + a.notHelpful)
+          const bScore = b.helpful / Math.max(1, b.helpful + b.notHelpful)
+          return bScore - aScore
+        })
+        break
+      case 'recent':
+      default:
+        results.sort((a, b) => b.createdAt - a.createdAt)
+        break
+    }
+
+    return results
+  }, [articles, searchQuery, filterCategory, filterSeverity, sortBy])
+
+  const hasActiveFilters = searchQuery !== '' || filterCategory !== 'all' || filterSeverity !== 'all'
+
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setFilterCategory('all')
+    setFilterSeverity('all')
   }
 
-  const handleRate = (helpful: boolean) => {
-    if (selectedArticle) {
-      onArticleRate(selectedArticle.id, helpful)
-      setSelectedArticle({
-        ...selectedArticle,
-        helpful: helpful ? selectedArticle.helpful + 1 : selectedArticle.helpful,
-        notHelpful: !helpful ? selectedArticle.notHelpful + 1 : selectedArticle.notHelpful
-      })
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'incident': return 'bg-destructive text-destructive-foreground'
+      case 'solution': return 'bg-success text-success-foreground'
+      case 'procedure': return 'bg-primary text-primary-foreground'
+      case 'troubleshooting': return 'bg-warning text-warning-foreground'
+      case 'best-practice': return 'bg-accent text-accent-foreground'
+      default: return 'bg-secondary text-secondary-foreground'
+    }
+  }
+
+  const getSeverityColor = (severity?: string) => {
+    switch (severity) {
+      case 'critical': return 'bg-destructive text-destructive-foreground'
+      case 'high': return 'bg-warning text-warning-foreground'
+      case 'medium': return 'bg-primary text-primary-foreground'
+      case 'low': return 'bg-muted text-muted-foreground'
+      default: return 'bg-secondary text-secondary-foreground'
     }
   }
 
   return (
-    <>
-      <div className="space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/20 rounded-lg">
+            <Book size={28} weight="duotone" className="text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Knowledge Base</h2>
+            <p className="text-sm text-muted-foreground">
+              AI-generated articles from resolved incidents
+            </p>
+          </div>
+        </div>
+        {onGenerateFromIncident && (
+          <Button 
+            onClick={onGenerateFromIncident}
+            disabled={isGenerating}
+            size="lg"
+          >
+            <Sparkle size={20} className="mr-2" weight="bold" />
+            {isGenerating ? 'Generating...' : 'Generate from Incident'}
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Book size={24} weight="duotone" className="text-primary" />
-              Knowledge Base
-            </CardTitle>
-            <CardDescription>
-              Searchable repository of incident solutions and best practices
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardDescription>Total Articles</CardDescription>
+            <CardTitle className="text-3xl">{stats.totalArticles}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Total Articles</span>
-                  <Book size={20} weight="duotone" className="text-primary" />
-                </div>
-                <div className="text-3xl font-bold">{stats.totalArticles}</div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div className="flex justify-between">
+                <span>Auto-generated:</span>
+                <span className="font-semibold">{stats.autoGeneratedArticles}</span>
               </div>
-
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Auto-Generated</span>
-                  <Sparkle size={20} weight="duotone" className="text-accent" />
-                </div>
-                <div className="text-3xl font-bold text-accent">{stats.autoGeneratedArticles}</div>
-              </div>
-
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Total Views</span>
-                  <Eye size={20} weight="duotone" className="text-muted-foreground" />
-                </div>
-                <div className="text-3xl font-bold">{stats.totalViews}</div>
-              </div>
-
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Avg Helpfulness</span>
-                  <ChartBar size={20} weight="duotone" className="text-success" />
-                </div>
-                <div className="text-3xl font-bold text-success">
-                  {stats.averageHelpfulness.toFixed(0)}%
-                </div>
+              <div className="flex justify-between">
+                <span>Manual:</span>
+                <span className="font-semibold">{stats.manualArticles}</span>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="flex gap-4 mb-4">
-              <div className="flex-1 relative">
-                <MagnifyingGlass
-                  size={20}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  weight="duotone"
-                />
-                <Input
-                  placeholder="Search knowledge base..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Total Views</CardDescription>
+            <CardTitle className="text-3xl">{stats.totalViews.toLocaleString()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">
+              Average: {Math.round(stats.totalViews / Math.max(1, stats.totalArticles))} per article
             </div>
+          </CardContent>
+        </Card>
 
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-4">
-              <TabsList className="grid w-full grid-cols-6">
-                {categories.map(cat => (
-                  <TabsTrigger key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    {cat !== 'all' && stats.articlesByCategory[cat] && (
-                      <Badge variant="secondary" className="ml-2">
-                        {stats.articlesByCategory[cat]}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Helpfulness Rating</CardDescription>
+            <CardTitle className="text-3xl">
+              {Math.round(stats.averageHelpfulness)}%
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Progress value={stats.averageHelpfulness} className="h-2" />
+          </CardContent>
+        </Card>
 
-              <TabsContent value={selectedCategory} className="space-y-3">
-                <ScrollArea className="h-[500px]">
-                  {filteredArticles.length === 0 ? (
-                    <Alert>
-                      <AlertDescription>
-                        No articles found matching your search criteria.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredArticles.map(article => (
-                        <ArticleCard
-                          key={article.id}
-                          article={article}
-                          onClick={() => handleArticleClick(article)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Top Category</CardDescription>
+            <CardTitle className="text-xl">
+              {Object.entries(stats.articlesByCategory).length > 0 
+                ? Object.entries(stats.articlesByCategory)
+                    .sort(([, a], [, b]) => b - a)[0]?.[0] || 'N/A'
+                : 'N/A'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">
+              {Object.entries(stats.articlesByCategory).length} categories
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Dialog open={selectedArticle !== null} onOpenChange={() => setSelectedArticle(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {selectedArticle && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3">
-                  {selectedArticle.title}
-                  {selectedArticle.autoGenerated && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Sparkle size={14} weight="duotone" />
-                      Auto-Generated
-                    </Badge>
-                  )}
-                </DialogTitle>
-                <DialogDescription>{selectedArticle.summary}</DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-6 py-4">
-                <div className="flex flex-wrap gap-2">
-                  {selectedArticle.tags.map(tag => (
-                    <Badge key={tag} variant="outline" className="flex items-center gap-1">
-                      <Tag size={12} weight="duotone" />
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <Separator />
-
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {selectedArticle.content}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ChartBar size={20} weight="duotone" />
+            Articles by Category
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Object.entries(stats.articlesByCategory).map(([category, count]) => {
+              const percentage = (count / stats.totalArticles) * 100
+              return (
+                <div key={category} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="capitalize">{category.replace('-', ' ')}</span>
+                    <span className="font-semibold">{count} ({Math.round(percentage)}%)</span>
                   </div>
+                  <Progress value={percentage} className="h-2" />
                 </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Eye size={16} weight="duotone" />
-                      <span>{selectedArticle.views} views</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ThumbsUp size={16} weight="duotone" />
-                      <span>{selectedArticle.helpful} helpful</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ThumbsDown size={16} weight="duotone" />
-                      <span>{selectedArticle.notHelpful} not helpful</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Created {formatDate(selectedArticle.createdAt)} by {selectedArticle.createdBy}
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-center gap-4">
-                  <Button
-                    onClick={() => handleRate(true)}
-                    variant="outline"
-                    size="lg"
-                    className="flex items-center gap-2"
-                  >
-                    <ThumbsUp size={20} weight="duotone" />
-                    Helpful
-                  </Button>
-                  <Button
-                    onClick={() => handleRate(false)}
-                    variant="outline"
-                    size="lg"
-                    className="flex items-center gap-2"
-                  >
-                    <ThumbsDown size={20} weight="duotone" />
-                    Not Helpful
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-interface ArticleCardProps {
-  article: KnowledgeArticle
-  onClick: () => void
-}
-
-function ArticleCard({ article, onClick }: ArticleCardProps) {
-  const helpfulness = article.helpful + article.notHelpful > 0
-    ? (article.helpful / (article.helpful + article.notHelpful)) * 100
-    : 0
-
-  return (
-    <Card className="cursor-pointer hover:border-primary transition-colors" onClick={onClick}>
-      <CardContent className="pt-6">
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h4 className="font-semibold flex items-center gap-2">
-                {article.title}
-                {article.autoGenerated && (
-                  <Sparkle size={16} weight="duotone" className="text-accent" />
-                )}
-              </h4>
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {article.summary}
-              </p>
-            </div>
-            <Badge variant="secondary">{article.category}</Badge>
+              )
+            })}
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-2">
-              {article.tags.slice(0, 3).map(tag => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {article.tags.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{article.tags.length - 3}
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Eye size={14} weight="duotone" />
-                <span>{article.views}</span>
-              </div>
-              {article.helpful + article.notHelpful > 0 && (
-                <div className="flex items-center gap-1">
-                  <ThumbsUp size={14} weight="duotone" className={helpfulness >= 70 ? 'text-success' : ''} />
-                  <span>{helpfulness.toFixed(0)}%</span>
-                </div>
-              )}
-            </div>
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <MagnifyingGlass 
+              size={18} 
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" 
+            />
+            <Input
+              placeholder="Search articles by title, content, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <FunnelSimple size={16} className="mr-2" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="incident">Incident</SelectItem>
+            <SelectItem value="solution">Solution</SelectItem>
+            <SelectItem value="procedure">Procedure</SelectItem>
+            <SelectItem value="troubleshooting">Troubleshooting</SelectItem>
+            <SelectItem value="best-practice">Best Practice</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterSeverity} onValueChange={(value) => setFilterSeverity(value as IncidentSeverity | 'all')}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <Lightning size={16} className="mr-2" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Severities</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'recent' | 'views' | 'helpful')}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Most Recent</SelectItem>
+            <SelectItem value="views">Most Viewed</SelectItem>
+            <SelectItem value="helpful">Most Helpful</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilters && (
+          <Button variant="outline" onClick={handleClearFilters}>
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      <Tabs defaultValue="grid" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="grid">Grid View</TabsTrigger>
+          <TabsTrigger value="list">List View</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="grid" className="space-y-4">
+          {filteredArticles.length === 0 ? (
+            <Alert>
+              <Book size={20} />
+              <AlertDescription>
+                {hasActiveFilters 
+                  ? 'No articles match your search criteria.'
+                  : 'No articles yet. Generate articles from resolved incidents to build your knowledge base.'}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredArticles.map((article) => {
+                const helpfulnessRating = article.helpful + article.notHelpful > 0
+                  ? Math.round((article.helpful / (article.helpful + article.notHelpful)) * 100)
+                  : null
+
+                return (
+                  <Card 
+                    key={article.id} 
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => onArticleSelect(article)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <Badge className={getCategoryColor(article.category)}>
+                          {article.category.replace('-', ' ')}
+                        </Badge>
+                        {article.autoGenerated && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Sparkle size={12} />
+                            AI
+                          </Badge>
+                        )}
+                      </div>
+                      <CardTitle className="text-lg line-clamp-2">
+                        {article.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-3">
+                        {article.summary}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {article.severity && (
+                          <Badge variant="outline" className={getSeverityColor(article.severity)}>
+                            {article.severity}
+                          </Badge>
+                        )}
+                        {article.tags.slice(0, 3).map((tag, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            <Tag size={12} className="mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                        {article.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{article.tags.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex items-center justify-between pt-0">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Eye size={14} />
+                          {article.views}
+                        </div>
+                        {helpfulnessRating !== null && (
+                          <div className="flex items-center gap-1">
+                            <ThumbsUp size={14} />
+                            {helpfulnessRating}%
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onViewArticle(article.id)
+                            onRateArticle(article.id, true)
+                          }}
+                        >
+                          <ThumbsUp size={16} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRateArticle(article.id, false)
+                          }}
+                        >
+                          <ThumbsDown size={16} />
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" className="space-y-3">
+          {filteredArticles.length === 0 ? (
+            <Alert>
+              <Book size={20} />
+              <AlertDescription>
+                {hasActiveFilters 
+                  ? 'No articles match your search criteria.'
+                  : 'No articles yet. Generate articles from resolved incidents to build your knowledge base.'}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            filteredArticles.map((article) => {
+              const helpfulnessRating = article.helpful + article.notHelpful > 0
+                ? Math.round((article.helpful / (article.helpful + article.notHelpful)) * 100)
+                : null
+
+              return (
+                <Card 
+                  key={article.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => onArticleSelect(article)}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={getCategoryColor(article.category)}>
+                                {article.category.replace('-', ' ')}
+                              </Badge>
+                              {article.severity && (
+                                <Badge variant="outline" className={getSeverityColor(article.severity)}>
+                                  {article.severity}
+                                </Badge>
+                              )}
+                              {article.autoGenerated && (
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <Sparkle size={12} />
+                                  AI-Generated
+                                </Badge>
+                              )}
+                            </div>
+                            <h3 className="text-lg font-semibold">{article.title}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {article.summary}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Eye size={14} />
+                            {article.views} views
+                          </div>
+                          {helpfulnessRating !== null && (
+                            <div className="flex items-center gap-1">
+                              <ThumbsUp size={14} />
+                              {helpfulnessRating}% helpful
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Calendar size={14} />
+                            {formatDate(article.createdAt)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <CheckCircle size={14} />
+                            {article.createdBy}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {article.tags.map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onViewArticle(article.id)
+                            onRateArticle(article.id, true)
+                          }}
+                        >
+                          <ThumbsUp size={16} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRateArticle(article.id, false)
+                          }}
+                        >
+                          <ThumbsDown size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

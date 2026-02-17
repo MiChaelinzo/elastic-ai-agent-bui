@@ -25,7 +25,7 @@ export interface ChatRecommendation {
   title: string
   description: string
   action: string
-  category: 'incident' | 'workflow' | 'query' | 'analysis'
+  category: 'incident' | 'workflow' | 'query' | 'analysis' | 'knowledge'
   icon?: string
 }
 

@@ -32,6 +32,9 @@ export type AuditAction =
   | 'user.logout'
   | 'data.exported'
   | 'security.alert'
+  | 'knowledge.article.created'
+  | 'knowledge.article.viewed'
+  | 'knowledge.article.rated'
 
 export type UserRole = 'admin' | 'operator' | 'analyst' | 'viewer'
 
