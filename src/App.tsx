@@ -870,12 +870,7 @@ function App() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
         e.preventDefault()
-        setAuthState(() => ({
-          isAuthenticated: false,
-          user: null,
-          mode: 'demo',
-          hasCompletedOnboarding: false
-        }))
+        handleLogout()
         toast.info('App reset to login screen', {
           description: 'Press Ctrl+Shift+R (or Cmd+Shift+R) to reset anytime'
         })
@@ -883,7 +878,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [setAuthState])
+  }, [handleLogout])
 
   useEffect(() => {
     if ((incidents || []).length > 0) {
@@ -1469,10 +1464,6 @@ function App() {
       mode: current?.mode || 'demo',
       hasCompletedOnboarding: current?.hasCompletedOnboarding || false
     }))
-    
-    toast.success('Welcome to Elastic Agent Orchestrator!', {
-      description: 'Tip: Use Ctrl+Shift+R to reset the app anytime'
-    })
   }
 
   const handleSkipLogin = () => {
@@ -1488,10 +1479,6 @@ function App() {
       mode: current?.mode || 'demo',
       hasCompletedOnboarding: current?.hasCompletedOnboarding || false
     }))
-    
-    toast.success('Welcome, Guest!', {
-      description: 'Tip: Use Ctrl+Shift+R to reset the app anytime'
-    })
   }
 
   const handleSelectMode = (mode: 'demo' | 'api') => {
