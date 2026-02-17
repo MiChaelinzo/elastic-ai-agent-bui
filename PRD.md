@@ -2,6 +2,8 @@
 
 An enterprise-grade intelligent DevOps Incident Response Platform that automates incident detection, diagnosis, and resolution using multi-agent orchestration with Elastic Agent Builder's reasoning models and tools. Now enhanced with SLA management, knowledge base, real-time collaboration, dependency mapping, advanced analytics, and flexible deployment modes (demo or API integration).
 
+**First-Time User Experience**: On initial access, users are greeted with a professional login screen followed by a comprehensive onboarding flow that guides them through mode selection (Demo vs API). This ensures smooth adoption whether evaluating features or deploying to production.
+
 **Experience Qualities**:
 1. **Intelligent** - The system should feel like having an expert DevOps engineer analyzing and resolving issues autonomously with AI-powered insights
 2. **Transparent** - Every agent decision, reasoning step, and action should be visible and explainable to build trust with complete audit trails
