@@ -1,165 +1,200 @@
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
-import { CheckCircle, Warning, SlackLogo, EnvelopeSimple, Key } from '@phosphor-icons/react'
-import { toast } from 'sonner'
-import type { APIConfig } from '@/lib/auth-types'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { CheckCircle, Warning, SlackLogo, EnvelopeSimple } from '@phosphor-icons/react'
+import { toast } from 'sonner' // Assuming sonner is used based on toast import
+
+// Define the configuration interface
+export interface APIConfig {
+  elasticsearchUrl: string
+  elasticsearchApiKey: string
+  slackWebhookUrl?: string
+  emailConfig?: {
+    smtpHost: string
+    smtpPort: number
+    username: string
+    password: string
+  }
+}
 
 interface APIConfigurationDialogProps {
   isOpen: boolean
   onClose: () => void
+  initialConfig?: APIConfig
   onSave: (config: APIConfig) => void
-  initialConfig?: APIConfig | null
 }
 
-export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig }: APIConfigurationDialogProps) {
-  const [config, setConfig] = useState<APIConfig>({
-    elasticsearchUrl: '',
-    elasticsearchApiKey: '',
-    slackWebhookUrl: '',
-    emailConfig: undefined
-  })
+const DEFAULT_CONFIG: APIConfig = {
+  elasticsearchUrl: '',
+  elasticsearchApiKey: '',
+  slackWebhookUrl: '',
+  emailConfig: {
+    smtpHost: '',
+    smtpPort: 587,
+    username: '',
+    password: ''
+  }
+}
 
-  const [testingConnection, setTestingConnection] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle')
+export function APIConfigurationDialog({
+  isOpen,
+  onClose,
+  initialConfig,
+  onSave
+}: APIConfigurationDialogProps) {
+  const [config, setConfig] = useState<APIConfig>(DEFAULT_CONFIG)
   const [enableEmail, setEnableEmail] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [activeTab, setActiveTab] = useState('elasticsearch')
 
+  // Load initial config when dialog opens
   useEffect(() => {
-    if (initialConfig) {
-      setConfig(initialConfig)
-      setEnableEmail(!!initialConfig.emailConfig)
+    if (isOpen) {
+      if (initialConfig) {
+        setConfig({
+          ...DEFAULT_CONFIG,
+          ...initialConfig,
+          emailConfig: { ...DEFAULT_CONFIG.emailConfig, ...initialConfig.emailConfig }
+        })
+        setEnableEmail(!!initialConfig.emailConfig?.smtpHost)
+      } else {
+        setConfig(DEFAULT_CONFIG)
+        setEnableEmail(false)
+      }
+      setConnectionStatus('idle')
     }
-  }, [initialConfig])
+  }, [isOpen, initialConfig])
 
   const handleTestConnection = async () => {
     if (!config.elasticsearchUrl || !config.elasticsearchApiKey) {
-      toast.error('Please provide Elasticsearch URL and API key')
+      toast.error('Missing Credentials', { 
+        description: 'Please enter both URL and API Key' 
+      })
       return
     }
 
-    setTestingConnection(true)
-    setConnectionStatus('idle')
+    setConnectionStatus('testing')
 
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    const isValid = config.elasticsearchUrl.startsWith('http')
-    
-    if (isValid) {
-      setConnectionStatus('success')
-      toast.success('Connection test successful!', {
-        description: 'Your Elasticsearch cluster is reachable'
-      })
-    } else {
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Basic validation simulation
+      const isValid = config.elasticsearchUrl.startsWith('http')
+      
+      if (isValid) {
+        setConnectionStatus('success')
+        toast.success('Connected', { description: 'Successfully connected to Elasticsearch' })
+      } else {
+        throw new Error('Invalid URL')
+      }
+    } catch (error) {
       setConnectionStatus('error')
-      toast.error('Connection test failed', {
-        description: 'Please check your URL and API key'
+      toast.error('Connection Failed', { 
+        description: 'Please check your URL and API key' 
       })
     }
-
-    setTestingConnection(false)
   }
 
   const handleSave = () => {
-    if (!config.elasticsearchUrl || !config.elasticsearchApiKey) {
-      toast.error('Please provide required Elasticsearch configuration')
+    if (!config.elasticsearchUrl) {
+      setActiveTab('elasticsearch')
+      toast.error('Configuration Invalid', { description: 'Elasticsearch URL is required' })
       return
     }
 
     const finalConfig = {
       ...config,
+      // If email is disabled, we might want to clear that config or leave it as optional
       emailConfig: enableEmail ? config.emailConfig : undefined
     }
 
     onSave(finalConfig)
-    toast.success('Configuration saved successfully', {
-      description: 'Your integrations are now configured'
-    })
+    onClose()
+    toast.success('Saved', { description: 'Your integrations are now configured' })
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>API Configuration</DialogTitle>
+          <DialogTitle>System Configuration</DialogTitle>
           <DialogDescription>
-            Connect to your Elasticsearch cluster and configure notification channels
+            Connect to your Elasticsearch cluster and setup notifications.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="elasticsearch" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="elasticsearch">Elasticsearch</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="elasticsearch" className="space-y-4 mt-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="es-url">Elasticsearch URL *</Label>
-                <Input
-                  id="es-url"
-                  placeholder="https://your-cluster.es.io:9200"
-                  value={config.elasticsearchUrl}
-                  onChange={(e) => setConfig({ ...config, elasticsearchUrl: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Your Elasticsearch cluster endpoint (include protocol and port)
-                </p>
-              </div>
+          <TabsContent value="elasticsearch" className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="es-url">Elasticsearch URL *</Label>
+              <Input
+                id="es-url"
+                placeholder="https://your-cluster.es.io:9200"
+                value={config.elasticsearchUrl}
+                onChange={(e) => setConfig({ ...config, elasticsearchUrl: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your Elasticsearch cluster endpoint (include protocol and port)
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="es-key">API Key *</Label>
-                <Input
-                  id="es-key"
-                  type="password"
-                  placeholder="Enter your Elasticsearch API key"
-                  value={config.elasticsearchApiKey}
-                  onChange={(e) => setConfig({ ...config, elasticsearchApiKey: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Generate an API key from your Elasticsearch deployment
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="es-key">API Key *</Label>
+              <Input
+                id="es-key"
+                type="password"
+                placeholder="Enter your Elasticsearch API key"
+                value={config.elasticsearchApiKey}
+                onChange={(e) => setConfig({ ...config, elasticsearchApiKey: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Generate an API key from your Elasticsearch deployment
+              </p>
+            </div>
 
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleTestConnection}
-                  disabled={testingConnection || !config.elasticsearchUrl || !config.elasticsearchApiKey}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {testingConnection ? 'Testing...' : 'Test Connection'}
-                </Button>
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleTestConnection}
+                disabled={connectionStatus === 'testing' || !config.elasticsearchUrl || !config.elasticsearchApiKey}
+                variant="outline"
+                className="flex-1"
+              >
+                {connectionStatus === 'testing' ? 'Testing...' : 'Test Connection'}
+              </Button>
 
-                {connectionStatus === 'success' && (
-                  <div className="flex items-center gap-2 text-success px-3 py-2 bg-success/10 rounded-md">
-                    <CheckCircle size={20} weight="fill" />
-                    <span className="text-sm font-medium">Connected</span>
-                  </div>
-                )}
+              {connectionStatus === 'success' && (
+                <div className="flex items-center gap-2 text-green-600 px-3 py-2 bg-green-50 rounded-md border border-green-200">
+                  <CheckCircle size={20} weight="fill" />
+                  <span className="text-sm font-medium">Connected</span>
+                </div>
+              )}
 
-                {connectionStatus === 'error' && (
-                  <div className="flex items-center gap-2 text-destructive px-3 py-2 bg-destructive/10 rounded-md">
-                    <Warning size={20} weight="fill" />
-                    <span className="text-sm font-medium">Failed</span>
-                  </div>
-                )}
-              </div>
+              {connectionStatus === 'error' && (
+                <div className="flex items-center gap-2 text-destructive px-3 py-2 bg-destructive/10 rounded-md border border-destructive/20">
+                  <Warning size={20} weight="fill" />
+                  <span className="text-sm font-medium">Failed</span>
+                </div>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="notifications" className="space-y-4 mt-4">
+          <TabsContent value="notifications" className="space-y-4 py-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <SlackLogo size={20} weight="duotone" className="text-primary" />
+                  <SlackLogo size={20} weight="duotone" className="text-blue-500" />
                   Slack Integration
                 </CardTitle>
                 <CardDescription>
@@ -183,11 +218,11 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <EnvelopeSimple size={20} weight="duotone" className="text-primary" />
+                      <EnvelopeSimple size={20} weight="duotone" className="text-orange-500" />
                       Email Integration
                     </CardTitle>
                     <CardDescription>
@@ -200,30 +235,24 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                   />
                 </div>
               </CardHeader>
+              
               {enableEmail && (
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                <CardContent className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="smtp-host">SMTP Host</Label>
                       <Input
                         id="smtp-host"
-                        placeholder="smtp.gmail.com"
+                        placeholder="smtp.example.com"
                         value={config.emailConfig?.smtpHost || ''}
                         onChange={(e) => setConfig({
                           ...config,
-                          emailConfig: {
-                            ...config.emailConfig,
-                            smtpHost: e.target.value,
-                            smtpPort: config.emailConfig?.smtpPort || 587,
-                            fromEmail: config.emailConfig?.fromEmail || '',
-                            apiKey: config.emailConfig?.apiKey || ''
-                          }
+                          emailConfig: { ...config.emailConfig!, smtpHost: e.target.value }
                         })}
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="smtp-port">SMTP Port</Label>
+                      <Label htmlFor="smtp-port">Port</Label>
                       <Input
                         id="smtp-port"
                         type="number"
@@ -231,96 +260,46 @@ export function APIConfigurationDialog({ isOpen, onClose, onSave, initialConfig 
                         value={config.emailConfig?.smtpPort || ''}
                         onChange={(e) => setConfig({
                           ...config,
-                          emailConfig: {
-                            ...config.emailConfig,
-                            smtpHost: config.emailConfig?.smtpHost || '',
-                            smtpPort: parseInt(e.target.value) || 587,
-                            fromEmail: config.emailConfig?.fromEmail || '',
-                            apiKey: config.emailConfig?.apiKey || ''
-                          }
+                          emailConfig: { ...config.emailConfig!, smtpPort: parseInt(e.target.value) || 0 }
                         })}
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="from-email">From Email</Label>
+                    <Label htmlFor="smtp-user">Username</Label>
                     <Input
-                      id="from-email"
-                      type="email"
-                      placeholder="alerts@company.com"
-                      value={config.emailConfig?.fromEmail || ''}
+                      id="smtp-user"
+                      placeholder="notifications@example.com"
+                      value={config.emailConfig?.username || ''}
                       onChange={(e) => setConfig({
                         ...config,
-                        emailConfig: {
-                          ...config.emailConfig,
-                          smtpHost: config.emailConfig?.smtpHost || '',
-                          smtpPort: config.emailConfig?.smtpPort || 587,
-                          fromEmail: e.target.value,
-                          apiKey: config.emailConfig?.apiKey || ''
-                        }
+                        emailConfig: { ...config.emailConfig!, username: e.target.value }
                       })}
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="email-key">SMTP API Key</Label>
+                    <Label htmlFor="smtp-pass">Password</Label>
                     <Input
-                      id="email-key"
+                      id="smtp-pass"
                       type="password"
-                      placeholder="Enter SMTP password or API key"
-                      value={config.emailConfig?.apiKey || ''}
+                      placeholder="••••••••"
+                      value={config.emailConfig?.password || ''}
                       onChange={(e) => setConfig({
                         ...config,
-                        emailConfig: {
-                          ...config.emailConfig,
-                          smtpHost: config.emailConfig?.smtpHost || '',
-                          smtpPort: config.emailConfig?.smtpPort || 587,
-                          fromEmail: config.emailConfig?.fromEmail || '',
-                          apiKey: e.target.value
-                        }
+                        emailConfig: { ...config.emailConfig!, password: e.target.value }
                       })}
                     />
                   </div>
                 </CardContent>
               )}
             </Card>
-          </TabsContent>
 
-          <TabsContent value="advanced" className="space-y-4 mt-4">
             <Alert>
-              <Key size={20} className="text-primary" weight="duotone" />
-              <AlertDescription>
-                Advanced settings for authentication, rate limiting, and custom headers
+              <Warning size={16} className="text-amber-500" />
+              <AlertDescription className="text-xs ml-2">
+                Make sure your firewall allows outbound connections to these services.
               </AlertDescription>
             </Alert>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Security & Performance</CardTitle>
-                <CardDescription>
-                  Configure advanced options for your API connections
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <div className="flex items-start gap-2">
-                  <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
-                  <span>All API keys are encrypted and stored securely in your browser</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
-                  <span>Credentials are never transmitted to third-party services</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
-                  <span>Direct connections to your Elasticsearch cluster only</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle size={16} weight="fill" className="text-primary mt-0.5 flex-shrink-0" />
-                  <span>You can clear all configuration data anytime from Settings</span>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
 
