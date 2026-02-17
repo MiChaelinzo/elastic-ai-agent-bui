@@ -116,6 +116,26 @@ import {
   rateArticle as rateKnowledgeArticle 
 } from '@/lib/knowledge-base'
 import { defaultSLAPolicies, type SLAPolicy, type SLABreach, type EscalationRule, type EscalationExecution, defaultEscalationRules } from '@/lib/sla-management'
+import { CommentThread } from '@/components/CommentThread'
+import { ActivityFeed } from '@/components/ActivityFeed'
+import { CollaborationStats } from '@/components/CollaborationStats'
+import { MentionsNotification } from '@/components/MentionsNotification'
+import { ChatCircleDots, Users } from '@phosphor-icons/react'
+import {
+  type Comment,
+  type IncidentActivity,
+  type ReactionType,
+  type CollaborationSettings,
+  createComment,
+  addReaction,
+  updateComment,
+  deleteComment,
+  getCommentsForIncident,
+  createActivity,
+  getActivitiesForIncident,
+  getUserMentions,
+  defaultCollaborationSettings
+} from '@/lib/incident-collaboration'
 
 const initialAgents: Agent[] = [
   {
@@ -248,6 +268,16 @@ function App() {
   const [knowledgeArticles, setKnowledgeArticles] = useKV<KnowledgeArticle[]>('knowledge-articles', [])
   const [selectedArticle, setSelectedArticle] = useState<KnowledgeArticle | null>(null)
   const [showArticleViewer, setShowArticleViewer] = useState(false)
+  
+  const [comments, setComments] = useKV<Comment[]>('incident-comments', [])
+  const [activities, setActivities] = useKV<IncidentActivity[]>('incident-activities', [])
+  const [collaborationSettings, setCollaborationSettings] = useKV<CollaborationSettings>(
+    'collaboration-settings',
+    defaultCollaborationSettings
+  )
+  const [showCollaboration, setShowCollaboration] = useState(false)
+  const [showCollaborationStats, setShowCollaborationStats] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; avatar: string } | null>(null)
   const [showGenerateArticle, setShowGenerateArticle] = useState(false)
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false)
   const [showArticlePrompt, setShowArticlePrompt] = useState(false)
@@ -301,6 +331,19 @@ function App() {
       { severity: incident.severity, templateId: incident.templateId }
     )
     setAuditLogs(current => [auditLog, ...(current || [])])
+    
+    if (currentUser) {
+      const activity = createActivity(
+        incident.id,
+        currentUser.id,
+        currentUser.name,
+        currentUser.avatar,
+        'status_change',
+        `created this incident with ${incident.severity} severity`,
+        { oldStatus: null, newStatus: 'new', severity: incident.severity }
+      )
+      setActivities(current => [activity, ...(current || [])])
+    }
     
     setShowNewIncident(false)
     setNewIncident({ title: '', description: '', severity: 'medium', templateId: '' })
@@ -505,6 +548,19 @@ function App() {
             : inc
         )
       )
+
+      if (currentUser) {
+        const activity = createActivity(
+          incident.id,
+          currentUser.id,
+          currentUser.name,
+          currentUser.avatar,
+          'resolution',
+          `resolved this incident - ${result.message}`,
+          { timeToResolve, stepsAutomated: 6 }
+        )
+        setActivities(current => [activity, ...(current || [])])
+      }
 
       toast.success('Incident resolved successfully!', {
         description: result.message,
@@ -761,6 +817,34 @@ function App() {
       }
     }
   }, [agents, agentTeams, setAgentTeams])
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const user = await window.spark.user()
+        if (user) {
+          setCurrentUser({
+            id: user.id?.toString() || 'user-1',
+            name: user.login || 'User',
+            avatar: user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.login || 'user'}`
+          })
+        } else {
+          setCurrentUser({
+            id: 'user-1',
+            name: 'User',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user'
+          })
+        }
+      } catch (error) {
+        setCurrentUser({
+          id: 'user-1',
+          name: 'User',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user'
+        })
+      }
+    }
+    loadCurrentUser()
+  }, [])
 
   useEffect(() => {
     if ((incidents || []).length > 0) {
@@ -1176,6 +1260,108 @@ function App() {
     setShowKnowledgeBase(true)
   }
 
+  const handleAddComment = async (incidentId: string, content: string, mentions: string[], parentId?: string, isInternal?: boolean) => {
+    if (!currentUser) return
+
+    const comment = createComment(
+      incidentId,
+      currentUser.id,
+      currentUser.name,
+      currentUser.avatar,
+      content,
+      mentions,
+      parentId,
+      undefined,
+      isInternal || false
+    )
+
+    setComments((current) => [comment, ...(current || [])])
+
+    const activity = createActivity(
+      incidentId,
+      currentUser.id,
+      currentUser.name,
+      currentUser.avatar,
+      'comment',
+      `commented on the incident${parentId ? ' (reply)' : ''}`,
+      { commentId: comment.id, isReply: !!parentId }
+    )
+    setActivities((current) => [activity, ...(current || [])])
+
+    if (mentions.length > 0) {
+      mentions.forEach(mentionedUser => {
+        const mentionActivity = createActivity(
+          incidentId,
+          currentUser.id,
+          currentUser.name,
+          currentUser.avatar,
+          'mention',
+          `mentioned @${mentionedUser} in a comment`,
+          { mentionedUser, commentId: comment.id }
+        )
+        setActivities((current) => [mentionActivity, ...(current || [])])
+      })
+    }
+
+    toast.success('Comment posted successfully')
+  }
+
+  const handleUpdateComment = (commentId: string, content: string, mentions: string[]) => {
+    setComments((current) =>
+      (current || []).map(c =>
+        c.id === commentId ? updateComment(c, content, mentions) : c
+      )
+    )
+    toast.success('Comment updated')
+  }
+
+  const handleDeleteComment = (commentId: string) => {
+    setComments((current) => deleteComment(current || [], commentId))
+    toast.success('Comment deleted')
+  }
+
+  const handleAddReaction = (commentId: string, reactionType: ReactionType) => {
+    if (!currentUser) return
+
+    setComments((current) =>
+      (current || []).map(c =>
+        c.id === commentId
+          ? addReaction(c, currentUser.id, currentUser.name, currentUser.avatar, reactionType)
+          : c
+      )
+    )
+  }
+
+  const incidentComments = useMemo(() => {
+    if (!selectedIncident) return []
+    return getCommentsForIncident(comments || [], selectedIncident.id)
+  }, [selectedIncident, comments])
+
+  const incidentActivities = useMemo(() => {
+    if (!selectedIncident) return []
+    return getActivitiesForIncident(activities || [], selectedIncident.id)
+  }, [selectedIncident, activities])
+
+  const userMentions = useMemo(() => {
+    if (!currentUser) return []
+    return getUserMentions(comments || [], currentUser.name)
+  }, [currentUser, comments])
+
+  const teamMembers = useMemo(() => {
+    const uniqueUsers = new Map<string, { id: string; name: string; avatar: string }>()
+    ;(comments || []).forEach(comment => {
+      uniqueUsers.set(comment.userId, {
+        id: comment.userId,
+        name: comment.userName,
+        avatar: comment.userAvatar
+      })
+    })
+    if (currentUser) {
+      uniqueUsers.set(currentUser.id, currentUser)
+    }
+    return Array.from(uniqueUsers.values())
+  }, [comments, currentUser])
+
   const relatedIncidentsForArticle = useMemo(() => {
     if (!selectedArticle) return []
     return (incidents || []).filter(inc => 
@@ -1274,6 +1460,34 @@ function App() {
                 {(knowledgeArticles || []).length > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {(knowledgeArticles || []).length}
+                  </Badge>
+                )}
+              </Button>
+              {currentUser && userMentions.length > 0 && (
+                <MentionsNotification
+                  mentions={userMentions}
+                  onMarkAsRead={() => {}}
+                  onViewComment={(comment) => {
+                    const incident = (incidents || []).find(inc => inc.id === comment.incidentId)
+                    if (incident) {
+                      setSelectedIncident(incident)
+                      setShowCollaboration(true)
+                    }
+                  }}
+                  currentUserName={currentUser.name}
+                />
+              )}
+              <Button 
+                onClick={() => setShowCollaborationStats(!showCollaborationStats)}
+                variant="outline"
+                size="lg"
+                className="relative"
+              >
+                <Users size={20} className="mr-2" weight="duotone" />
+                Team Activity
+                {(comments || []).length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {(comments || []).length}
                   </Badge>
                 )}
               </Button>
@@ -1948,71 +2162,132 @@ function App() {
       </Dialog>
 
       <Dialog open={selectedIncident !== null} onOpenChange={() => setSelectedIncident(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           {selectedIncident && (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedIncident.title}</DialogTitle>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{selectedIncident.title}</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCollaboration(!showCollaboration)}
+                    >
+                      <ChatCircleDots size={18} className="mr-2" weight="duotone" />
+                      {showCollaboration ? 'Hide' : 'Show'} Discussion
+                      {incidentComments.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {incidentComments.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
+                </DialogTitle>
                 <DialogDescription>{selectedIncident.description}</DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6 py-4">
-                {(knowledgeArticles || []).length > 0 && (
-                  <RelatedKnowledge
-                    incident={selectedIncident}
-                    articles={knowledgeArticles || []}
-                    onArticleClick={handleArticleSelect}
-                    maxArticles={3}
-                  />
-                )}
+              <Tabs defaultValue="details" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="details">Details & Analysis</TabsTrigger>
+                  <TabsTrigger value="discussion">
+                    Team Discussion
+                    {incidentComments.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {incidentComments.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="activity">
+                    Activity Timeline
+                    {incidentActivities.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {incidentActivities.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
 
-                {externalMetrics.length > 0 && (
-                  <div>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleShowMetricCorrelation(selectedIncident)}
-                      className="w-full"
-                    >
-                      <ChartLine size={18} className="mr-2" weight="duotone" />
-                      Analyze External Metric Correlations
-                    </Button>
-                  </div>
-                )}
+                <TabsContent value="details" className="space-y-6 py-4">
+                  {(knowledgeArticles || []).length > 0 && (
+                    <RelatedKnowledge
+                      incident={selectedIncident}
+                      articles={knowledgeArticles || []}
+                      onArticleClick={handleArticleSelect}
+                      maxArticles={3}
+                    />
+                  )}
 
-                {selectedIncident.reasoningSteps.length > 0 && (
-                  <ReasoningLog steps={selectedIncident.reasoningSteps} maxHeight="500px" />
-                )}
-
-                {selectedIncident.proposedSolution && (
-                  <Alert className="border-accent">
-                    <GitBranch size={20} className="text-accent" />
-                    <AlertDescription>
-                      <div className="font-semibold mb-2">Proposed Solution:</div>
-                      <div className="text-sm">{selectedIncident.proposedSolution}</div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {isProcessing && workflowProgress > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{currentWorkflowStep}</span>
-                      <span className="font-mono font-semibold">{Math.round(workflowProgress)}%</span>
+                  {externalMetrics.length > 0 && (
+                    <div>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleShowMetricCorrelation(selectedIncident)}
+                        className="w-full"
+                      >
+                        <ChartLine size={18} className="mr-2" weight="duotone" />
+                        Analyze External Metric Correlations
+                      </Button>
                     </div>
-                    <Progress value={workflowProgress} />
-                  </div>
-                )}
+                  )}
 
-                {selectedIncident.resolution && (
-                  <Alert className="border-success">
-                    <CheckCircle size={20} className="text-success" />
-                    <AlertDescription>
-                      <div className="font-semibold mb-2">Resolution:</div>
-                      <div className="text-sm">{selectedIncident.resolution}</div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
+                  {selectedIncident.reasoningSteps.length > 0 && (
+                    <ReasoningLog steps={selectedIncident.reasoningSteps} maxHeight="500px" />
+                  )}
+
+                  {selectedIncident.proposedSolution && (
+                    <Alert className="border-accent">
+                      <GitBranch size={20} className="text-accent" />
+                      <AlertDescription>
+                        <div className="font-semibold mb-2">Proposed Solution:</div>
+                        <div className="text-sm">{selectedIncident.proposedSolution}</div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {isProcessing && workflowProgress > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{currentWorkflowStep}</span>
+                        <span className="font-mono font-semibold">{Math.round(workflowProgress)}%</span>
+                      </div>
+                      <Progress value={workflowProgress} />
+                    </div>
+                  )}
+
+                  {selectedIncident.resolution && (
+                    <Alert className="border-success">
+                      <CheckCircle size={20} className="text-success" />
+                      <AlertDescription>
+                        <div className="font-semibold mb-2">Resolution:</div>
+                        <div className="text-sm">{selectedIncident.resolution}</div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="discussion" className="py-4">
+                  {currentUser && (
+                    <CommentThread
+                      incidentId={selectedIncident.id}
+                      comments={incidentComments}
+                      currentUser={currentUser}
+                      onAddComment={(content, mentions, parentId, isInternal) =>
+                        handleAddComment(selectedIncident.id, content, mentions, parentId, isInternal)
+                      }
+                      onUpdateComment={handleUpdateComment}
+                      onDeleteComment={handleDeleteComment}
+                      onAddReaction={handleAddReaction}
+                      teamMembers={teamMembers}
+                      allowInternal={true}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="activity" className="py-4">
+                  <ActivityFeed activities={incidentActivities} />
+                </TabsContent>
+              </Tabs>
 
               <DialogFooter>
                 {selectedIncident.status === 'new' && (
@@ -2454,6 +2729,23 @@ function App() {
               )
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCollaborationStats} onOpenChange={setShowCollaborationStats}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users size={24} weight="duotone" className="text-primary" />
+              Team Collaboration Analytics
+            </DialogTitle>
+            <DialogDescription>
+              Track team engagement, active contributors, and collaboration patterns
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CollaborationStats comments={comments || []} />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
