@@ -197,6 +197,15 @@ function App() {
   const [apiConfig, setApiConfig] = useKV<APIConfig | null>('api-config', null)
   const [showAPIConfig, setShowAPIConfig] = useState(false)
   const [showModeSelection, setShowModeSelection] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  
+  useEffect(() => {
+    const initializeApp = async () => {
+      console.log('App initializing, current authState:', authState)
+      setIsInitialized(true)
+    }
+    initializeApp()
+  }, [])
   
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
@@ -839,16 +848,17 @@ function App() {
   }, [agents.length, agentTeams?.length])
 
   const handleLogout = useCallback(() => {
-    setAuthState(() => ({
+    deleteAuthState()
+    setAuthState({
       isAuthenticated: false,
       user: null,
       mode: 'demo',
       hasCompletedOnboarding: false
-    }))
+    })
     toast.success('Signed out successfully', {
       description: 'You have been logged out'
     })
-  }, [setAuthState])
+  }, [setAuthState, deleteAuthState])
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -1538,23 +1548,26 @@ function App() {
     }
   }
 
-  const handleLogout = () => {
-    setAuthState(() => ({
-      isAuthenticated: false,
-      user: null,
-      mode: 'demo',
-      hasCompletedOnboarding: false
-    }))
-    toast.success('Signed out successfully', {
-      description: 'You have been logged out'
-    })
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Lightning size={48} weight="duotone" className="text-primary animate-pulse mx-auto" />
+          <p className="text-muted-foreground">Initializing Elastic Agent Orchestrator...</p>
+        </div>
+      </div>
+    )
   }
 
+  console.log('Rendering with authState:', authState)
+
   if (!authState?.isAuthenticated) {
+    console.log('Showing LoginScreen - user not authenticated')
     return <LoginScreen onLogin={handleLogin} onSkip={handleSkipLogin} />
   }
 
   if (!authState?.hasCompletedOnboarding) {
+    console.log('Showing WelcomeScreen - onboarding not completed')
     return (
       <>
         <WelcomeScreen onSelectMode={handleSelectMode} />
@@ -1575,6 +1588,8 @@ function App() {
       </>
     )
   }
+
+  console.log('Showing main app')
 
   return (
     <div className="min-h-screen bg-background">

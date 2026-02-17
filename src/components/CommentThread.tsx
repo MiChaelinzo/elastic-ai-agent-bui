@@ -8,7 +8,7 @@ import {
   Lock, 
   Globe, 
   X
-} from '@phosphor-icons/react' // Assuming phosphor-icons based on component names
+} from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
@@ -18,32 +18,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea' // Assumed component
-import { ScrollArea } from '@/components/ui/scroll-area' // Assumed component
-
-// --- Types ---
-
-type ReactionType = '👍' | '❤️' | '😂' | '😮' | '😢' | '😡'
-
-interface CommentAttachment {
-  id: string
-  url: string
-  name: string
-  type: 'image' | 'file'
-}
-
-interface Comment {
-  id: string
-  content: string
-  userId: string
-  userName: string
-  userAvatar?: string
-  createdAt: Date
-  parentId?: string
-  isInternal?: boolean
-  reactions: Record<string, number> // type: count
-  attachments?: CommentAttachment[]
-}
+import { Textarea } from '@/components/ui/textarea'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import type { Comment, ReactionType, CommentAttachment } from '@/lib/incident-collaboration'
 
 interface CommentThreadProps {
   incidentId: string
@@ -61,9 +38,7 @@ interface CommentThreadProps {
   allowInternal?: boolean
 }
 
-const reactionTypes: ReactionType[] = ['👍', '❤️', '😂', '😮', '😢', '😡']
-
-// --- Main Component ---
+const reactionTypes: ReactionType[] = ['👍', '👎', '❤️', '🎉', '🚀', '👀', '⚠️', '✅']
 
 export function CommentThread({
   incidentId,
@@ -158,8 +133,8 @@ export function CommentThread({
 
   const renderComment = (comment: Comment, isReply = false) => {
     const isEditing = editingComment === comment.id
-    const replies = comments.filter(c => c.parentId === comment.id)
-    const reactionSummary = Object.entries(comment.reactions || {})
+    const replies = comments.filter(c => c.parentCommentId === comment.id)
+    const reactionSummary = comment.reactions || []
 
     return (
       <div key={comment.id} className={`flex gap-3 ${isReply ? 'ml-10 mt-2' : 'border-b pb-4 last:border-0'}`}>
@@ -172,7 +147,7 @@ export function CommentThread({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">{comment.userName}</span>
-              <span className="text-xs text-muted-foreground">{formatCommentTime(comment.createdAt)}</span>
+              <span className="text-xs text-muted-foreground">{formatDistanceToNow(comment.timestamp, { addSuffix: true })}</span>
               {comment.isInternal && (
                 <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
                   <Lock size={10} className="mr-1" /> Internal
@@ -180,7 +155,6 @@ export function CommentThread({
               )}
             </div>
             
-            {/* Actions for current user */}
             {!isEditing && currentUser.id === comment.userId && (
               <div className="flex items-center">
                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(comment)}>
@@ -259,19 +233,29 @@ export function CommentThread({
                   <ArrowBendUpLeft size={14} className="mr-1" /> Reply
                 </Button>
 
-                {/* Display Existing Reactions */}
                 <div className="flex gap-1 ml-2">
-                    {reactionSummary.map(([type, count]) => (
-                        <Badge key={type} variant="secondary" className="px-1 py-0 h-5" onClick={() => onAddReaction(comment.id, type as ReactionType)}>
-                            {type} <span className="ml-1 text-[10px]">{count as number}</span>
-                        </Badge>
-                    ))}
+                  {reactionSummary.length > 0 && (() => {
+                    const grouped = reactionSummary.reduce((acc, reaction) => {
+                      acc[reaction.type] = (acc[reaction.type] || 0) + 1
+                      return acc
+                    }, {} as Record<string, number>)
+                    
+                    return Object.entries(grouped).map(([type, count]) => (
+                      <Badge 
+                        key={type} 
+                        variant="secondary" 
+                        className="px-1 py-0 h-5 cursor-pointer" 
+                        onClick={() => onAddReaction(comment.id, type as ReactionType)}
+                      >
+                        {type} <span className="ml-1 text-[10px]">{count}</span>
+                      </Badge>
+                    ))
+                  })()}
                 </div>
               </div>
             </>
           )}
 
-          {/* Recursive Replies */}
           {replies.length > 0 && (
             <div className="mt-2 pt-2 border-l-2 border-muted pl-2">
               {replies.map(reply => renderComment(reply, true))}
@@ -282,7 +266,7 @@ export function CommentThread({
     )
   }
 
-  const topLevelComments = comments.filter(c => !c.parentId)
+  const topLevelComments = comments.filter(c => !c.parentCommentId)
 
   // --- Main Render Returns ---
 

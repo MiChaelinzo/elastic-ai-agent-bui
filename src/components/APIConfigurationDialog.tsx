@@ -8,25 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, Warning, SlackLogo, EnvelopeSimple } from '@phosphor-icons/react'
-import { toast } from 'sonner' // Assuming sonner is used based on toast import
-
-// Define the configuration interface
-export interface APIConfig {
-  elasticsearchUrl: string
-  elasticsearchApiKey: string
-  slackWebhookUrl?: string
-  emailConfig?: {
-    smtpHost: string
-    smtpPort: number
-    username: string
-    password: string
-  }
-}
+import { toast } from 'sonner'
+import type { APIConfig } from '@/lib/auth-types'
 
 interface APIConfigurationDialogProps {
   isOpen: boolean
   onClose: () => void
-  initialConfig?: APIConfig
+  initialConfig?: APIConfig | null
   onSave: (config: APIConfig) => void
 }
 
@@ -37,8 +25,8 @@ const DEFAULT_CONFIG: APIConfig = {
   emailConfig: {
     smtpHost: '',
     smtpPort: 587,
-    username: '',
-    password: ''
+    fromEmail: '',
+    apiKey: ''
   }
 }
 
@@ -53,14 +41,15 @@ export function APIConfigurationDialog({
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [activeTab, setActiveTab] = useState('elasticsearch')
 
-  // Load initial config when dialog opens
   useEffect(() => {
     if (isOpen) {
       if (initialConfig) {
         setConfig({
           ...DEFAULT_CONFIG,
           ...initialConfig,
-          emailConfig: { ...DEFAULT_CONFIG.emailConfig, ...initialConfig.emailConfig }
+          emailConfig: initialConfig.emailConfig 
+            ? { ...DEFAULT_CONFIG.emailConfig, ...initialConfig.emailConfig }
+            : DEFAULT_CONFIG.emailConfig
         })
         setEnableEmail(!!initialConfig.emailConfig?.smtpHost)
       } else {
@@ -266,27 +255,27 @@ export function APIConfigurationDialog({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="smtp-user">Username</Label>
+                    <Label htmlFor="smtp-from">From Email</Label>
                     <Input
-                      id="smtp-user"
+                      id="smtp-from"
                       placeholder="notifications@example.com"
-                      value={config.emailConfig?.username || ''}
+                      value={config.emailConfig?.fromEmail || ''}
                       onChange={(e) => setConfig({
                         ...config,
-                        emailConfig: { ...config.emailConfig!, username: e.target.value }
+                        emailConfig: { ...config.emailConfig!, fromEmail: e.target.value }
                       })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="smtp-pass">Password</Label>
+                    <Label htmlFor="smtp-api-key">API Key / Password</Label>
                     <Input
-                      id="smtp-pass"
+                      id="smtp-api-key"
                       type="password"
                       placeholder="••••••••"
-                      value={config.emailConfig?.password || ''}
+                      value={config.emailConfig?.apiKey || ''}
                       onChange={(e) => setConfig({
                         ...config,
-                        emailConfig: { ...config.emailConfig!, password: e.target.value }
+                        emailConfig: { ...config.emailConfig!, apiKey: e.target.value }
                       })}
                     />
                   </div>
