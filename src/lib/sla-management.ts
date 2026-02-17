@@ -1,5 +1,66 @@
 import type { Incident, IncidentSeverity } from './types'
 
+export type EscalationActionType = 
+  | 'notify_team'
+  | 'upgrade_severity'
+  | 'assign_senior'
+  | 'trigger_workflow'
+  | 'page_oncall'
+  | 'create_ticket'
+  | 'send_webhook'
+  | 'auto_approve'
+
+export type EscalationTrigger = 'breach' | 'at-risk' | 'time-threshold' | 'manual'
+
+export interface EscalationRule {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  trigger: EscalationTrigger
+  conditions: {
+    severities?: IncidentSeverity[]
+    breachType?: ('response' | 'resolution' | 'both')[]
+    timeOverThreshold?: number
+    atRiskThreshold?: number
+  }
+  actions: EscalationAction[]
+  cooldownPeriod?: number
+  maxExecutions?: number
+}
+
+export interface EscalationAction {
+  type: EscalationActionType
+  priority: number
+  config: {
+    team?: string
+    newSeverity?: IncidentSeverity
+    assignee?: string
+    workflowId?: string
+    webhookUrl?: string
+    message?: string
+    channels?: string[]
+  }
+}
+
+export interface EscalationExecution {
+  id: string
+  ruleId: string
+  incidentId: string
+  breachId?: string
+  triggeredAt: number
+  trigger: EscalationTrigger
+  actionsExecuted: {
+    actionType: EscalationActionType
+    executedAt: number
+    success: boolean
+    result?: string
+    error?: string
+  }[]
+  status: 'pending' | 'executing' | 'completed' | 'failed' | 'cancelled'
+  completedAt?: number
+}
+
 export interface SLAPolicy {
   id: string
   name: string
@@ -11,6 +72,7 @@ export interface SLAPolicy {
   businessHoursOnly: boolean
   enabled: boolean
   target?: number
+  escalationRules?: string[]
 }
 
 export interface SLAStatus {
@@ -44,6 +106,7 @@ export interface SLABreach {
   acknowledgedBy?: string
   acknowledgedAt?: number
   notes?: string
+  escalationExecutions?: string[]
 }
 
 export interface SLAMetrics {
@@ -69,6 +132,177 @@ export interface SLAMetrics {
   }[]
 }
 
+export const defaultEscalationRules: EscalationRule[] = [
+  {
+    id: 'escalation-critical-breach',
+    name: 'Critical Incident Breach Response',
+    description: 'Immediate escalation for critical incident SLA breaches',
+    enabled: true,
+    trigger: 'breach',
+    conditions: {
+      severities: ['critical'],
+      breachType: ['response', 'resolution', 'both']
+    },
+    actions: [
+      {
+        type: 'page_oncall',
+        priority: 1,
+        config: {
+          team: 'incident-response',
+          message: 'URGENT: Critical incident SLA breach detected'
+        }
+      },
+      {
+        type: 'notify_team',
+        priority: 2,
+        config: {
+          team: 'engineering-leads',
+          channels: ['slack', 'email'],
+          message: 'Critical incident requires immediate attention'
+        }
+      },
+      {
+        type: 'assign_senior',
+        priority: 3,
+        config: {
+          assignee: 'senior-engineer'
+        }
+      },
+      {
+        type: 'trigger_workflow',
+        priority: 4,
+        config: {
+          workflowId: 'emergency-response'
+        }
+      }
+    ],
+    cooldownPeriod: 30 * 60 * 1000,
+    maxExecutions: 3
+  },
+  {
+    id: 'escalation-high-at-risk',
+    name: 'High Priority At-Risk Alert',
+    description: 'Proactive escalation when high priority incidents are at risk',
+    enabled: true,
+    trigger: 'at-risk',
+    conditions: {
+      severities: ['high', 'critical'],
+      atRiskThreshold: 75
+    },
+    actions: [
+      {
+        type: 'notify_team',
+        priority: 1,
+        config: {
+          team: 'incident-response',
+          channels: ['slack'],
+          message: 'High priority incident approaching SLA deadline'
+        }
+      },
+      {
+        type: 'trigger_workflow',
+        priority: 2,
+        config: {
+          workflowId: 'escalation-prep'
+        }
+      }
+    ],
+    cooldownPeriod: 60 * 60 * 1000,
+    maxExecutions: 2
+  },
+  {
+    id: 'escalation-upgrade-severity',
+    name: 'Auto-Upgrade After Time Threshold',
+    description: 'Automatically upgrade severity if incident exceeds time threshold',
+    enabled: true,
+    trigger: 'time-threshold',
+    conditions: {
+      severities: ['medium', 'high'],
+      timeOverThreshold: 2 * 60 * 60 * 1000
+    },
+    actions: [
+      {
+        type: 'upgrade_severity',
+        priority: 1,
+        config: {
+          newSeverity: 'high',
+          message: 'Auto-upgraded due to extended resolution time'
+        }
+      },
+      {
+        type: 'notify_team',
+        priority: 2,
+        config: {
+          team: 'operations',
+          channels: ['slack', 'email'],
+          message: 'Incident severity upgraded due to SLA risk'
+        }
+      }
+    ],
+    cooldownPeriod: 3 * 60 * 60 * 1000,
+    maxExecutions: 1
+  },
+  {
+    id: 'escalation-auto-approve',
+    name: 'Auto-Approve Critical Breaches',
+    description: 'Automatically approve agent actions for breached critical incidents',
+    enabled: true,
+    trigger: 'breach',
+    conditions: {
+      severities: ['critical'],
+      breachType: ['resolution', 'both']
+    },
+    actions: [
+      {
+        type: 'auto_approve',
+        priority: 1,
+        config: {
+          message: 'Auto-approved due to critical SLA breach'
+        }
+      },
+      {
+        type: 'notify_team',
+        priority: 2,
+        config: {
+          team: 'incident-response',
+          channels: ['slack'],
+          message: 'Agent actions auto-approved for breached critical incident'
+        }
+      }
+    ],
+    maxExecutions: 1
+  },
+  {
+    id: 'escalation-webhook',
+    name: 'External System Integration',
+    description: 'Trigger webhooks for external ticketing and ITSM systems',
+    enabled: false,
+    trigger: 'breach',
+    conditions: {
+      severities: ['critical', 'high'],
+      breachType: ['resolution', 'both']
+    },
+    actions: [
+      {
+        type: 'send_webhook',
+        priority: 1,
+        config: {
+          webhookUrl: 'https://example.com/api/sla-breach',
+          message: 'SLA breach webhook trigger'
+        }
+      },
+      {
+        type: 'create_ticket',
+        priority: 2,
+        config: {
+          team: 'support',
+          message: 'Create escalation ticket in external system'
+        }
+      }
+    ]
+  }
+]
+
 export const defaultSLAPolicies: SLAPolicy[] = [
   {
     id: 'sla-critical',
@@ -80,7 +314,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     escalationTime: 30 * 60 * 1000,
     businessHoursOnly: false,
     enabled: true,
-    target: 99.5
+    target: 99.5,
+    escalationRules: ['escalation-critical-breach', 'escalation-auto-approve', 'escalation-webhook']
   },
   {
     id: 'sla-high',
@@ -92,7 +327,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     escalationTime: 2 * 60 * 60 * 1000,
     businessHoursOnly: false,
     enabled: true,
-    target: 98.0
+    target: 98.0,
+    escalationRules: ['escalation-high-at-risk', 'escalation-upgrade-severity', 'escalation-webhook']
   },
   {
     id: 'sla-medium',
@@ -104,7 +340,8 @@ export const defaultSLAPolicies: SLAPolicy[] = [
     escalationTime: 4 * 60 * 60 * 1000,
     businessHoursOnly: true,
     enabled: true,
-    target: 95.0
+    target: 95.0,
+    escalationRules: ['escalation-upgrade-severity']
   },
   {
     id: 'sla-low',
@@ -379,10 +616,233 @@ export function detectSLABreaches(incidents: Incident[], policies: SLAPolicy[], 
         breachType: status.breachType,
         breachedAt: Date.now(),
         timeOverBreach: status.timeOverBreach,
-        acknowledged: false
+        acknowledged: false,
+        escalationExecutions: []
       })
     }
   })
 
   return breaches
+}
+
+export function shouldTriggerEscalation(
+  rule: EscalationRule,
+  incident: Incident,
+  status: SLAStatus,
+  breach?: SLABreach,
+  existingExecutions: EscalationExecution[] = []
+): boolean {
+  if (!rule.enabled) return false
+
+  if (rule.conditions.severities && !rule.conditions.severities.includes(incident.severity)) {
+    return false
+  }
+
+  if (rule.trigger === 'breach' && status.status !== 'breached') {
+    return false
+  }
+
+  if (rule.trigger === 'at-risk' && status.status !== 'at-risk') {
+    return false
+  }
+
+  if (rule.conditions.breachType && status.breachType) {
+    if (!rule.conditions.breachType.includes(status.breachType)) {
+      return false
+    }
+  }
+
+  if (rule.conditions.atRiskThreshold && status.percentComplete < rule.conditions.atRiskThreshold) {
+    return false
+  }
+
+  if (rule.conditions.timeOverThreshold && (!status.timeOverBreach || status.timeOverBreach < rule.conditions.timeOverThreshold)) {
+    return false
+  }
+
+  const ruleExecutions = existingExecutions.filter(e => e.ruleId === rule.id && e.incidentId === incident.id)
+  
+  if (rule.maxExecutions && ruleExecutions.length >= rule.maxExecutions) {
+    return false
+  }
+
+  if (rule.cooldownPeriod && ruleExecutions.length > 0) {
+    const lastExecution = ruleExecutions.sort((a, b) => b.triggeredAt - a.triggeredAt)[0]
+    const timeSinceLastExecution = Date.now() - lastExecution.triggeredAt
+    if (timeSinceLastExecution < rule.cooldownPeriod) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export async function executeEscalationAction(
+  action: EscalationAction,
+  incident: Incident,
+  breach: SLABreach | undefined,
+  context: {
+    onUpgradeSeverity?: (newSeverity: IncidentSeverity) => void
+    onAutoApprove?: () => void
+    onNotifyTeam?: (team: string, message: string, channels: string[]) => void
+    onTriggerWorkflow?: (workflowId: string) => void
+  }
+): Promise<{ success: boolean; result?: string; error?: string }> {
+  try {
+    switch (action.type) {
+      case 'upgrade_severity':
+        if (action.config.newSeverity && context.onUpgradeSeverity) {
+          context.onUpgradeSeverity(action.config.newSeverity)
+          return {
+            success: true,
+            result: `Severity upgraded to ${action.config.newSeverity}`
+          }
+        }
+        break
+
+      case 'auto_approve':
+        if (context.onAutoApprove) {
+          context.onAutoApprove()
+          return {
+            success: true,
+            result: 'Agent actions auto-approved'
+          }
+        }
+        break
+
+      case 'notify_team':
+        if (action.config.team && action.config.message && context.onNotifyTeam) {
+          const channels = action.config.channels || ['slack']
+          context.onNotifyTeam(action.config.team, action.config.message, channels)
+          return {
+            success: true,
+            result: `Team ${action.config.team} notified via ${channels.join(', ')}`
+          }
+        }
+        break
+
+      case 'trigger_workflow':
+        if (action.config.workflowId && context.onTriggerWorkflow) {
+          context.onTriggerWorkflow(action.config.workflowId)
+          return {
+            success: true,
+            result: `Workflow ${action.config.workflowId} triggered`
+          }
+        }
+        break
+
+      case 'page_oncall':
+        return {
+          success: true,
+          result: `On-call team ${action.config.team} paged`
+        }
+
+      case 'assign_senior':
+        return {
+          success: true,
+          result: `Assigned to ${action.config.assignee}`
+        }
+
+      case 'create_ticket':
+        return {
+          success: true,
+          result: 'External ticket created'
+        }
+
+      case 'send_webhook':
+        if (action.config.webhookUrl) {
+          return {
+            success: true,
+            result: `Webhook sent to ${action.config.webhookUrl}`
+          }
+        }
+        break
+
+      default:
+        return {
+          success: false,
+          error: `Unknown action type: ${action.type}`
+        }
+    }
+
+    return {
+      success: false,
+      error: 'Action configuration incomplete'
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function executeEscalationRule(
+  rule: EscalationRule,
+  incident: Incident,
+  breach: SLABreach | undefined,
+  trigger: EscalationTrigger,
+  context: {
+    onUpgradeSeverity?: (newSeverity: IncidentSeverity) => void
+    onAutoApprove?: () => void
+    onNotifyTeam?: (team: string, message: string, channels: string[]) => void
+    onTriggerWorkflow?: (workflowId: string) => void
+  }
+): Promise<EscalationExecution> {
+  const execution: EscalationExecution = {
+    id: `escalation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    ruleId: rule.id,
+    incidentId: incident.id,
+    breachId: breach?.id,
+    triggeredAt: Date.now(),
+    trigger,
+    actionsExecuted: [],
+    status: 'executing'
+  }
+
+  const sortedActions = [...rule.actions].sort((a, b) => a.priority - b.priority)
+
+  for (const action of sortedActions) {
+    const result = await executeEscalationAction(action, incident, breach, context)
+    execution.actionsExecuted.push({
+      actionType: action.type,
+      executedAt: Date.now(),
+      success: result.success,
+      result: result.result,
+      error: result.error
+    })
+  }
+
+  const allSuccessful = execution.actionsExecuted.every(a => a.success)
+  execution.status = allSuccessful ? 'completed' : 'failed'
+  execution.completedAt = Date.now()
+
+  return execution
+}
+
+export function getApplicableEscalationRules(
+  incident: Incident,
+  status: SLAStatus,
+  breach: SLABreach | undefined,
+  allRules: EscalationRule[],
+  policy: SLAPolicy,
+  existingExecutions: EscalationExecution[] = []
+): EscalationRule[] {
+  const policyRuleIds = policy.escalationRules || []
+  
+  let applicableRules = allRules.filter(rule => {
+    if (policyRuleIds.length > 0 && !policyRuleIds.includes(rule.id)) {
+      return false
+    }
+    
+    return shouldTriggerEscalation(rule, incident, status, breach, existingExecutions)
+  })
+
+  applicableRules = applicableRules.sort((a, b) => {
+    const priorityA = Math.min(...a.actions.map(action => action.priority))
+    const priorityB = Math.min(...b.actions.map(action => action.priority))
+    return priorityA - priorityB
+  })
+
+  return applicableRules
 }

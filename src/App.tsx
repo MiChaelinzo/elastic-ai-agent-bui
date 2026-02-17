@@ -115,7 +115,7 @@ import {
   incrementArticleView,
   rateArticle as rateKnowledgeArticle 
 } from '@/lib/knowledge-base'
-import { defaultSLAPolicies, type SLAPolicy, type SLABreach } from '@/lib/sla-management'
+import { defaultSLAPolicies, type SLAPolicy, type SLABreach, type EscalationRule, type EscalationExecution, defaultEscalationRules } from '@/lib/sla-management'
 
 const initialAgents: Agent[] = [
   {
@@ -256,6 +256,8 @@ function App() {
   const [showSLADashboard, setShowSLADashboard] = useState(false)
   const [slaPolicies, setSlaPolicies] = useKV<SLAPolicy[]>('sla-policies', defaultSLAPolicies)
   const [slaBreaches, setSlaBreaches] = useKV<SLABreach[]>('sla-breaches', [])
+  const [escalationRules, setEscalationRules] = useKV<EscalationRule[]>('escalation-rules', defaultEscalationRules)
+  const [escalationExecutions, setEscalationExecutions] = useKV<EscalationExecution[]>('escalation-executions', [])
   
   const [newIncident, setNewIncident] = useState({
     title: '',
@@ -2442,7 +2444,15 @@ function App() {
           <SLADashboard 
             incidents={incidents || []}
             policies={slaPolicies || defaultSLAPolicies}
+            escalationRules={escalationRules || defaultEscalationRules}
             onBreachDetected={handleSLABreachDetected}
+            onIncidentUpdate={(incidentId, updates) => {
+              setIncidents(current =>
+                (current || []).map(inc =>
+                  inc.id === incidentId ? { ...inc, ...updates } : inc
+                )
+              )
+            }}
           />
         </DialogContent>
       </Dialog>

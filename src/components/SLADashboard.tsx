@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import type { Incident } from '@/lib/types'
-import type { SLAPolicy, SLAStatus, SLABreach, SLAMetrics } from '@/lib/sla-management'
+import type { SLAPolicy, SLAStatus, SLABreach, SLAMetrics, EscalationRule, EscalationExecution } from '@/lib/sla-management'
 import { 
   calculateSLAStatus, 
   formatSLATime, 
@@ -15,22 +15,39 @@ import {
   getSLAMetrics,
   getSLAPolicy,
   defaultSLAPolicies,
-  detectSLABreaches
+  detectSLABreaches,
+  defaultEscalationRules,
+  getApplicableEscalationRules,
+  executeEscalationRule
 } from '@/lib/sla-management'
-import { Clock, Warning, CheckCircle, Timer, Target, ChartLine, Bell, ShieldWarning, Gauge, TrendUp, ListChecks } from '@phosphor-icons/react'
-import { useMemo, useState, useEffect } from 'react'
+import { Clock, Warning, CheckCircle, Timer, Target, ChartLine, Bell, ShieldWarning, Gauge, TrendUp, ListChecks, Lightning } from '@phosphor-icons/react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
+import { EscalationWorkflowManager } from '@/components/EscalationWorkflowManager'
+import { EscalationExecutionDetail } from '@/components/EscalationExecutionDetail'
 
 interface SLADashboardProps {
   incidents: Incident[]
   policies?: SLAPolicy[]
+  escalationRules?: EscalationRule[]
   onBreachDetected?: (breach: SLABreach) => void
+  onIncidentUpdate?: (incidentId: string, updates: Partial<Incident>) => void
 }
 
-export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreachDetected }: SLADashboardProps) {
+export function SLADashboard({ 
+  incidents, 
+  policies = defaultSLAPolicies, 
+  escalationRules = defaultEscalationRules,
+  onBreachDetected,
+  onIncidentUpdate
+}: SLADashboardProps) {
   const [breaches, setBreaches] = useState<SLABreach[]>([])
   const [selectedBreach, setSelectedBreach] = useState<SLABreach | null>(null)
   const [showBreachDetails, setShowBreachDetails] = useState(false)
+  const [rules, setRules] = useState<EscalationRule[]>(escalationRules)
+  const [escalationExecutions, setEscalationExecutions] = useState<EscalationExecution[]>([])
+  const [selectedExecution, setSelectedExecution] = useState<EscalationExecution | null>(null)
+  const [showExecutionDetail, setShowExecutionDetail] = useState(false)
 
   const activeIncidents = useMemo(
     () => incidents.filter(i => i.status !== 'resolved' && i.status !== 'failed'),
@@ -56,11 +73,95 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
 
   const unacknowledgedBreaches = breaches.filter(b => !b.acknowledged)
 
+  const handleEscalation = useCallback(async (
+    incident: Incident,
+    status: SLAStatus,
+    breach: SLABreach | undefined
+  ) => {
+    const policy = getSLAPolicy(incident.severity, policies)
+    if (!policy) return
+
+    const applicableRules = getApplicableEscalationRules(
+      incident,
+      status,
+      breach,
+      rules,
+      policy,
+      escalationExecutions
+    )
+
+    for (const rule of applicableRules) {
+      const execution = await executeEscalationRule(
+        rule,
+        incident,
+        breach,
+        status.status === 'breached' ? 'breach' : status.status === 'at-risk' ? 'at-risk' : 'time-threshold',
+        {
+          onUpgradeSeverity: (newSeverity) => {
+            onIncidentUpdate?.(incident.id, { severity: newSeverity })
+            toast.success(`Incident severity upgraded to ${newSeverity}`, {
+              description: `Automated escalation workflow triggered`
+            })
+          },
+          onAutoApprove: () => {
+            onIncidentUpdate?.(incident.id, { 
+              requiresApproval: false,
+              approvedBy: 'Auto-approved by escalation workflow',
+              approvedAt: Date.now()
+            })
+            toast.success('Incident auto-approved', {
+              description: 'Agent actions approved by escalation workflow'
+            })
+          },
+          onNotifyTeam: (team, message, channels) => {
+            toast.info(`Team notification sent`, {
+              description: `${team} notified via ${channels.join(', ')}: ${message}`
+            })
+          },
+          onTriggerWorkflow: (workflowId) => {
+            toast.info('Workflow triggered', {
+              description: `Escalation workflow ${workflowId} initiated`
+            })
+          }
+        }
+      )
+
+      setEscalationExecutions(prev => [execution, ...prev])
+
+      if (breach) {
+        setBreaches(prev => prev.map(b =>
+          b.id === breach.id
+            ? { ...b, escalationExecutions: [...(b.escalationExecutions || []), execution.id] }
+            : b
+        ))
+      }
+
+      toast.success(`Escalation workflow executed: ${rule.name}`, {
+        description: `${execution.actionsExecuted.filter(a => a.success).length}/${execution.actionsExecuted.length} actions completed`,
+        action: {
+          label: 'View Details',
+          onClick: () => {
+            setSelectedExecution(execution)
+            setShowExecutionDetail(true)
+          }
+        }
+      })
+    }
+  }, [rules, policies, escalationExecutions, onIncidentUpdate])
+
   useEffect(() => {
     const newBreaches = detectSLABreaches(activeIncidents, policies, breaches)
     if (newBreaches.length > 0) {
       setBreaches(prev => [...newBreaches, ...prev])
       newBreaches.forEach(breach => {
+        const incident = activeIncidents.find(i => i.id === breach.incidentId)
+        const policy = getSLAPolicy(breach.severity, policies)
+        
+        if (incident && policy) {
+          const status = calculateSLAStatus(incident, policy)
+          handleEscalation(incident, status, breach)
+        }
+
         toast.error('SLA Breach Detected!', {
           description: `${breach.incidentTitle} - ${breach.breachType} deadline exceeded`,
           action: {
@@ -74,7 +175,33 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
         onBreachDetected?.(breach)
       })
     }
-  }, [activeIncidents, policies])
+  }, [activeIncidents, policies, handleEscalation, onBreachDetected])
+
+  useEffect(() => {
+    const checkAtRiskIncidents = () => {
+      activeIncidents.forEach(incident => {
+        const policy = getSLAPolicy(incident.severity, policies)
+        if (!policy) return
+
+        const status = calculateSLAStatus(incident, policy)
+        
+        if (status.status === 'at-risk') {
+          const recentExecutions = escalationExecutions.filter(
+            e => e.incidentId === incident.id && e.trigger === 'at-risk'
+          )
+          
+          if (recentExecutions.length === 0) {
+            handleEscalation(incident, status, undefined)
+          }
+        }
+      })
+    }
+
+    const interval = setInterval(checkAtRiskIncidents, 60000)
+    checkAtRiskIncidents()
+
+    return () => clearInterval(interval)
+  }, [activeIncidents, policies, escalationExecutions, handleEscalation])
 
   const acknowledgeBreach = (breachId: string, notes?: string) => {
     setBreaches(prev => prev.map(b => 
@@ -91,6 +218,14 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
     const policy = policies.find(p => p.severity === severity)
     return policy?.target || 95
   }
+    setRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled } : r))
+    toast.success(enabled ? 'Escalation rule enabled' : 'Escalation rule disabled')
+  }
+
+  const handleViewExecution = (execution: EscalationExecution) => {
+    setSelectedExecution(execution)
+    setShowExecutionDetail(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -99,7 +234,7 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
           <ShieldWarning size={20} className="text-destructive" weight="duotone" />
           <AlertDescription className="flex items-center justify-between">
             <div>
-              <strong className="text-destructive">{unacknowledgedBreaches.length}</strong> unacknowledged SLA breach{unacknowledgedBreaches.length !== 1 ? 'es' : ''} require immediate attention!
+              <strong>{unacknowledgedBreaches.length}</strong> unacknowledged SLA breach{unacknowledgedBreaches.length !== 1 ? 'es' : ''} detected
             </div>
             <Button 
               variant="destructive" 
@@ -109,24 +244,56 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
                 setShowBreachDetails(true)
               }}
             >
-              <Bell size={16} className="mr-2" weight="bold" />
               Review Breaches
             </Button>
           </AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target size={24} weight="duotone" className="text-primary" />
-            SLA Management Dashboard
-          </CardTitle>
-          <CardDescription>
-            Monitor service level agreements, compliance metrics, and breach alerts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      {escalationExecutions.filter(e => e.status === 'executing').length > 0 && (
+        <Alert className="border-primary bg-primary/10">
+          <Lightning size={20} className="text-primary" weight="duotone" />
+          <AlertDescription>
+            {escalationExecutions.filter(e => e.status === 'executing').length} escalation workflow(s) currently executing...
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="active">Active SLAs</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
+          <TabsTrigger value="breaches">
+            Breaches
+            {unacknowledgedBreaches.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {unacknowledgedBreaches.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="escalation">
+            Escalation Workflows
+            {escalationExecutions.filter(e => e.status === 'executing').length > 0 && (
+              <Badge variant="default" className="ml-2 animate-pulse">
+                {escalationExecutions.filter(e => e.status === 'executing').length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target size={24} weight="duotone" className="text-primary" />
+                SLA Management Dashboard
+              </CardTitle>
+              <CardDescription>
+                Monitor service level agreements, compliance metrics, and breach alerts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-lg border bg-card hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between mb-2">
@@ -315,33 +482,113 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
 
-      <Tabs defaultValue="active" className="space-y-4">
-        <TabsList className="grid w-full max-w-3xl grid-cols-4">
-          <TabsTrigger value="active">
-            Active ({slaStatuses.length})
-          </TabsTrigger>
-          <TabsTrigger value="at-risk" className="relative">
-            At Risk ({atRiskSLAs.length})
-            {atRiskSLAs.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="breached" className="relative">
-            Breached ({breachedSLAs.length})
-            {breachedSLAs.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="relative">
-            Breach History ({breaches.length})
-            {unacknowledgedBreaches.length > 0 && (
-              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {unacknowledgedBreaches.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <TabsContent value="compliance" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ListChecks size={20} weight="duotone" className="text-primary" />
+                  Compliance by Severity
+                </CardTitle>
+                <CardDescription>Performance against SLA targets for each priority level</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(metrics.bySeverity).map(([severity, data]) => {
+                    const target = getPolicyTarget(severity)
+                    const isAboveTarget = data.compliance >= target
+                    return (
+                      <div key={severity} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={
+                              severity === 'critical' ? 'destructive' :
+                              severity === 'high' ? 'default' :
+                              severity === 'medium' ? 'secondary' : 'outline'
+                            }>
+                              {severity.toUpperCase()}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Target: {target}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${
+                              isAboveTarget ? 'text-success' : 'text-destructive'
+                            }`}>
+                              {data.compliance.toFixed(1)}%
+                            </span>
+                            {isAboveTarget ? (
+                              <CheckCircle size={16} className="text-success" weight="bold" />
+                            ) : (
+                              <Warning size={16} className="text-destructive" weight="bold" />
+                            )}
+                          </div>
+                        </div>
+                        <Progress 
+                          value={Math.min(100, data.compliance)} 
+                          className="h-2"
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{data.compliant} compliant / {data.breached} breached</span>
+                          <span>Avg: {formatSLATime(data.averageResolutionTime)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ChartLine size={20} weight="duotone" className="text-primary" />
+                  Performance Metrics
+                </CardTitle>
+                <CardDescription>Average response and resolution times</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Average Response Time</span>
+                      <Badge variant="outline">
+                        {formatSLATime(metrics.overall.averageResponseTime)}
+                      </Badge>
+                    </div>
+                    <Progress value={30} className="h-2" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Average Resolution Time</span>
+                      <Badge variant="outline">
+                        {formatSLATime(metrics.overall.averageResolutionTime)}
+                      </Badge>
+                    </div>
+                    <Progress value={65} className="h-2" />
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Total Incidents</p>
+                      <p className="text-2xl font-bold">{metrics.overall.totalIncidents}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Breached</p>
+                      <p className="text-2xl font-bold text-destructive">{metrics.overall.breachedIncidents}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="active" className="space-y-4">
           {slaStatuses.length === 0 ? (
@@ -445,7 +692,27 @@ export function SLADashboard({ incidents, policies = defaultSLAPolicies, onBreac
             </>
           )}
         </TabsContent>
+
+        <TabsContent value="escalation" className="space-y-4">
+          <EscalationWorkflowManager
+            rules={rules}
+            executions={escalationExecutions}
+            onUpdateRule={handleUpdateRule}
+            onViewExecution={handleViewExecution}
+          />
+        </TabsContent>
       </Tabs>
+
+      <EscalationExecutionDetail
+        execution={selectedExecution}
+        rule={rules.find(r => r.id === selectedExecution?.ruleId)}
+        incident={incidents.find(i => i.id === selectedExecution?.incidentId)}
+        isOpen={showExecutionDetail}
+        onClose={() => {
+          setShowExecutionDetail(false)
+          setSelectedExecution(null)
+        }}
+      />
 
       <Dialog open={showBreachDetails} onOpenChange={setShowBreachDetails}>
         <DialogContent className="max-w-2xl">
