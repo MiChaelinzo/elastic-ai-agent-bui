@@ -852,23 +852,25 @@ function App() {
     }
   }, [agents.length, agentTeams?.length])
 
-  const handleLogout = useCallback(() => {
-    deleteAuthState()
-    setAuthState({
-      isAuthenticated: true,
-      user: {
-        id: 'guest',
-        email: 'guest@demo.local',
-        name: 'Guest User',
-        role: 'viewer',
-        createdAt: Date.now()
-      },
-      mode: 'demo',
-      hasCompletedOnboarding: false
-    })
-    toast.success('Resetting to welcome screen', {
-      description: 'Restart your onboarding experience'
-    })
+  const handleLogout = useCallback(async () => {
+    await deleteAuthState()
+    setTimeout(() => {
+      setAuthState({
+        isAuthenticated: true,
+        user: {
+          id: 'guest',
+          email: 'guest@demo.local',
+          name: 'Guest User',
+          role: 'viewer',
+          createdAt: Date.now()
+        },
+        mode: 'demo',
+        hasCompletedOnboarding: false
+      })
+      toast.success('Resetting to welcome screen', {
+        description: 'Restart your onboarding experience'
+      })
+    }, 100)
   }, [setAuthState, deleteAuthState])
 
   useEffect(() => {

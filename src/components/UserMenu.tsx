@@ -78,7 +78,7 @@ export function UserMenu({ user, onSettings, onLogout }: UserMenuProps) {
         {onLogout && (
           <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
             <SignOut className="mr-2 h-4 w-4" weight="duotone" />
-            <span>Sign Out</span>
+            <span>Reset to Welcome Screen</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
