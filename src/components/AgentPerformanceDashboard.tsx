@@ -383,7 +383,9 @@ export function AgentPerformanceDashboard({ agents, incidents, isOpen, onClose }
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
                                   <div className="font-medium text-sm">{activity.incidentTitle}</div>
-                                  <div className="text-xs text-muted-foreground mt-1">{activity.action}</div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {new Date(activity.timestamp).toLocaleString()}
+                                  </div>
                                 </div>
                                 <Badge 
                                   variant={
@@ -398,7 +400,6 @@ export function AgentPerformanceDashboard({ agents, incidents, isOpen, onClose }
                               </div>
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                 <span>Confidence: {Math.round(activity.confidence)}%</span>
-                                <span>Duration: {activity.duration}s</span>
                               </div>
                             </Card>
                           ))}

@@ -1,35 +1,32 @@
 import type { Incident, Agent, ReasoningStep } from './types'
 
-  agentName: string
-  totalIncidents:
-  failedResolutions
-  averageResponseTi
-  successRate: number
-  topStrengths: string[]
-  recentActivity: AgentActi
-  efficiencyTrend: 'improvi
-
+export interface AgentActivity {
   timestamp: number
-  incidentTitle: stri
+  incidentTitle: string
   confidence: number
-  outcome: 'success' | '
-
-  metric: string
+  outcome: 'success' | 'failed'
 }
-export interface TeamPerformanceMetrics {
- 
 
-  collaborationEfficiency: numbe
+export interface AgentPerformanceMetrics {
+  agentId: string
+  agentName: string
+  agentType: string
+  totalIncidents: number
+  successfulResolutions: number
+  failedResolutions: number
+  averageConfidence: number
+  averageResponseTime: number
+  totalThinkingTime: number
+  successRate: number
+  lastActive: number
+  topStrengths: string[]
+  areasForImprovement: string[]
+  recentActivity: AgentActivity[]
+  collaborationScore: number
+  efficiencyTrend: 'improving' | 'stable' | 'declining'
 }
-export function calc
-  incidents: Incident[]
-  const agentInc
-  )
-  const totalIncid
-    inc => inc.status === 'resolved'
- 
 
-  const agentSteps = agentIncidents.flat
+export interface PerformanceComparison {
   metric: string
   values: { agentName: string; value: number; trend: number }[]
 }
@@ -50,7 +47,7 @@ export function calculateAgentPerformance(
 ): AgentPerformanceMetrics {
   const agentIncidents = incidents.filter(inc => 
     inc.assignedAgents.includes(agent.type)
-
+  )
 
   const totalIncidents = agentIncidents.length
   const successfulResolutions = agentIncidents.filter(
@@ -61,71 +58,75 @@ export function calculateAgentPerformance(
   ).length
 
   const agentSteps = agentIncidents.flatMap(inc =>
-    inc.reasoningSteps.filter(step => step.agent === agent.type)
+    inc.reasoningSteps.filter(step => step.agentType === agent.type)
   )
 
-    }))
+  const totalThinkingTime = agentSteps.reduce(
+    (sum, step) => sum + 1000,
+    0
+  )
+
+  const averageResponseTime = agentSteps.length > 0
+    ? totalThinkingTime / agentSteps.length
+    : 0
+
+  const confidenceScores = agentSteps
+    .map(step => step.confidence || 0)
+    .filter(conf => conf > 0)
+
+  const averageConfidence = confidenceScores.length > 0
+    ? confidenceScores.reduce((sum, conf) => sum + conf, 0) / confidenceScores.length
+    : 0
+
+  const successRate = totalIncidents > 0
+    ? (successfulResolutions / totalIncidents) * 100
+    : 0
+
+  const lastActive = agentIncidents.length > 0
+    ? Math.max(...agentIncidents.map(inc => inc.updatedAt))
+    : 0
+
+  const recentActivity: AgentActivity[] = agentIncidents
+    .slice(0, 5)
+    .map(inc => {
+      const incidentAgentSteps = inc.reasoningSteps.filter(step => step.agentType === agent.type)
+      const avgConfidence = incidentAgentSteps.length > 0
+        ? incidentAgentSteps.reduce((sum, step) => sum + (step.confidence || 0), 0) / incidentAgentSteps.length
+        : 0
+      
+      return {
+        timestamp: inc.updatedAt,
+        incidentTitle: inc.title,
+        confidence: avgConfidence,
+        outcome: inc.status === 'resolved' ? 'success' as const : 'failed' as const
+      }
+    })
+
   const topStrengths: string[] = []
+  const areasForImprovement: string[] = []
 
-   
-    areasForImprovement.push('Improve decision co
+  if (averageConfidence > 85) {
+    topStrengths.push('High decision confidence')
+  } else if (averageConfidence < 70) {
+    areasForImprovement.push('Improve decision confidence')
+  }
 
-    top
+  if (successRate > 85) {
+    topStrengths.push('Excellent success rate')
+  } else if (successRate < 60) {
+    areasForImprovement.push('Increase resolution success rate')
+  }
 
-
+  if (averageResponseTime < 1000) {
     topStrengths.push('Fast response time')
-    areasForImprovement.push('Redu
+  } else if (averageResponseTime > 3000) {
+    areasForImprovement.push('Reduce response time')
+  }
 
-  
+  const collaborationScore = calculateCollaborationScore(agent, incidents)
+  const efficiencyTrend = calculateEfficiencyTrend(agentIncidents)
 
-
-    agentType: agent.type,
-    successfulResolutions,
-    ave
-
-    lastActive,
-    areasForImprovement,
-    collaboratio
-
-
-  const agentInci
-  )
-  if (agentIncidents.length ===
-  const multiAgentInciden
-  )
-  const collaborationRate = multiAgentIncidents.length / age
-    inc => inc.status === 'resolved'
-
-    ? successfulCollaborations / multiAgentIncidents.le
-
-}
-
-): 'improving' | 'stable' | 'declin
-
-
-  const secondHalf = sortedIncid
-  const firstHalfSuccessRate = firstHalf.filter(i => i.s
-
-
-  i
-
-export function calculateT
-  incidents: Incident[]
-  const allMetrics = agents.map(
-  )
-  c
-
-    (sum, inc) => sum + (inc.metric
-  )
-    ? totalResolutionTime / resolvedIncide
-
-   
-
-    current.successRate > best.successRate ? current : best,
-  
-  const mostImprovedAgent = allMetrics.reduce((best, current) => 
-
-
+  return {
     agentId: agent.id,
     agentName: agent.name,
     agentType: agent.type,
@@ -221,71 +222,6 @@ export function calculateTeamPerformance(
     allMetrics[0]
   )
 
-  const avgCollaboration = allMetrics.reduce(
-    (sum, m) => sum + m.collaborationScore,
-    0
-  ) / allMetrics.length
-
-  const avgConfidence = allMetrics.reduce(
-    (sum, m) => sum + m.averageConfidence,
-    0
-  ) / allMetrics.length
-
-  return {
-    totalIncidentsHandled,
-    averageResolutionTime,
-    teamSuccessRate,
-    topPerformer: topPerformer?.agentName || 'N/A',
-    mostImprovedAgent: mostImprovedAgent?.agentName || 'N/A',
-    collaborationEfficiency: Math.round(avgCollaboration),
-    avgConfidence: Math.round(avgConfidence)
-  }
-}
-
-export function generatePerformanceComparisons(
-  agents: Agent[],
-  incidents: Incident[]
-): PerformanceComparison[] {
-  const allMetrics = agents.map(agent => 
-    calculateAgentPerformance(agent, incidents)
-  )
-
-  return [
-    {
-      metric: 'Success Rate',
-      values: allMetrics.map(m => ({
-        agentName: m.agentName,
-        value: m.successRate,
-        trend: m.efficiencyTrend === 'improving' ? 1 : 
-               m.efficiencyTrend === 'declining' ? -1 : 0
-      }))
-    },
-    {
-      metric: 'Average Confidence',
-      values: allMetrics.map(m => ({
-        agentName: m.agentName,
-        value: m.averageConfidence,
-        trend: 0
-      }))
-    },
-    {
-      metric: 'Collaboration Score',
-      values: allMetrics.map(m => ({
-        agentName: m.agentName,
-        value: m.collaborationScore,
-        trend: 0
-      }))
-    },
-    {
-      metric: 'Response Time (ms)',
-      values: allMetrics.map(m => ({
-        agentName: m.agentName,
-        value: m.averageResponseTime,
-        trend: 0
-      }))
-    }
-  ]
-}
   const avgCollaboration = allMetrics.reduce(
     (sum, m) => sum + m.collaborationScore,
     0

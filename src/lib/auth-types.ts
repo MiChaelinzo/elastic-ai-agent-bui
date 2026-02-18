@@ -19,10 +19,10 @@ export interface APIConfig {
   elasticsearchApiKey: string
   slackWebhookUrl?: string
   emailConfig?: {
-    smtpHost: string
-    smtpPort: number
-    fromEmail: string
-    apiKey: string
+    smtpHost?: string
+    smtpPort?: number
+    fromEmail?: string
+    apiKey?: string
   }
 }
 

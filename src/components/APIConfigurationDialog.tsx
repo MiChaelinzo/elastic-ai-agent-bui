@@ -9,18 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, Warning, SlackLogo, EnvelopeSimple } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-
-export interface APIConfig {
-  elasticsearchUrl: string
-  elasticsearchApiKey: string
-  slackWebhookUrl?: string
-  emailConfig?: {
-    smtpHost: string
-    smtpPort: number
-    fromEmail: string
-    apiKey: string
-  }
-}
+import type { APIConfig } from '@/lib/auth-types'
 
 interface APIConfigurationDialogProps {
   isOpen: boolean
