@@ -14,9 +14,9 @@ export interface AgentPerformanceMetrics {
   totalIncidents: number
   successfulResolutions: number
   failedResolutions: number
-  averageConfidence: number
-  averageResponseTime: number
   totalThinkingTime: number
+  averageResponseTime: number
+  averageConfidence: number
   successRate: number
   lastActive: number
   topStrengths: string[]
@@ -58,11 +58,11 @@ export function calculateAgentPerformance(
   ).length
 
   const agentSteps = agentIncidents.flatMap(inc =>
-    inc.reasoningSteps.filter(step => step.agentType === agent.type)
+    inc.reasoningSteps.filter(step => step.agent === agent.type)
   )
 
   const totalThinkingTime = agentSteps.reduce(
-    (sum, step) => sum + 1000,
+    (sum, step) => sum + (step.duration || 0),
     0
   )
 
@@ -87,32 +87,33 @@ export function calculateAgentPerformance(
     : 0
 
   const recentActivity: AgentActivity[] = agentIncidents
+    .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 5)
     .map(inc => {
-      const incidentAgentSteps = inc.reasoningSteps.filter(step => step.agentType === agent.type)
-      const avgConfidence = incidentAgentSteps.length > 0
-        ? incidentAgentSteps.reduce((sum, step) => sum + (step.confidence || 0), 0) / incidentAgentSteps.length
-        : 0
-      
+      const incSteps = inc.reasoningSteps.filter(step => step.agent === agent.type);
+      const avgStepConfidence = incSteps.length > 0
+        ? incSteps.reduce((sum, step) => sum + (step.confidence || 0), 0) / incSteps.length
+        : 0;
+
       return {
         timestamp: inc.updatedAt,
         incidentTitle: inc.title,
-        confidence: avgConfidence,
-        outcome: inc.status === 'resolved' ? 'success' as const : 'failed' as const
-      }
+        confidence: avgStepConfidence,
+        outcome: inc.status === 'resolved' ? 'success' : 'failed'
+      };
     })
 
   const topStrengths: string[] = []
   const areasForImprovement: string[] = []
 
   if (averageConfidence > 85) {
-    topStrengths.push('High decision confidence')
+    topStrengths.push('High confidence')
   } else if (averageConfidence < 70) {
     areasForImprovement.push('Improve decision confidence')
   }
 
   if (successRate > 85) {
-    topStrengths.push('Excellent success rate')
+    topStrengths.push('High success rate')
   } else if (successRate < 60) {
     areasForImprovement.push('Increase resolution success rate')
   }
@@ -138,9 +139,9 @@ export function calculateAgentPerformance(
     totalThinkingTime,
     successRate,
     lastActive,
+    recentActivity,
     topStrengths,
     areasForImprovement,
-    recentActivity,
     collaborationScore,
     efficiencyTrend
   }
@@ -172,12 +173,14 @@ function calculateCollaborationScore(agent: Agent, incidents: Incident[]): numbe
 function calculateEfficiencyTrend(
   incidents: Incident[]
 ): 'improving' | 'stable' | 'declining' {
-  if (incidents.length < 4) return 'stable'
+  if (incidents.length < 2) return 'stable'
 
   const sortedIncidents = [...incidents].sort((a, b) => a.createdAt - b.createdAt)
   
   const firstHalf = sortedIncidents.slice(0, Math.floor(sortedIncidents.length / 2))
   const secondHalf = sortedIncidents.slice(Math.floor(sortedIncidents.length / 2))
+
+  if (firstHalf.length === 0 || secondHalf.length === 0) return 'stable'
 
   const firstHalfSuccessRate = firstHalf.filter(i => i.status === 'resolved').length / firstHalf.length
   const secondHalfSuccessRate = secondHalf.filter(i => i.status === 'resolved').length / secondHalf.length
@@ -198,7 +201,7 @@ export function calculateTeamPerformance(
   )
 
   const totalIncidentsHandled = incidents.length
-  
+
   const resolvedIncidents = incidents.filter(inc => inc.status === 'resolved')
   const totalResolutionTime = resolvedIncidents.reduce(
     (sum, inc) => sum + (inc.metricsImpact?.timeToResolve || 0),
@@ -225,12 +228,12 @@ export function calculateTeamPerformance(
   const avgCollaboration = allMetrics.reduce(
     (sum, m) => sum + m.collaborationScore,
     0
-  ) / allMetrics.length
+  ) / (allMetrics.length || 1)
 
   const avgConfidence = allMetrics.reduce(
     (sum, m) => sum + m.averageConfidence,
     0
-  ) / allMetrics.length
+  ) / (allMetrics.length || 1)
 
   return {
     totalIncidentsHandled,
@@ -287,3 +290,4 @@ export function generatePerformanceComparisons(
     }
   ]
 }
+
