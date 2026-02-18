@@ -161,3 +161,30 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.tab-scroll-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.tab-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tab-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.tab-scroll-container::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.tab-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted-foreground);
+}
