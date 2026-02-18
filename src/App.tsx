@@ -2531,12 +2531,12 @@ function App() {
                       setIncidentPendingApproval(selectedIncident)
                       setShowApprovalDialog(true)
                     }}
-                    className="bg-warning hover:bg-warning/90 text-warning-foreground"
-                  >
-                    <ShieldCheck size={18} className="mr-2" weight="bold" />
-                    Review & Approve
+                  > className="bg-warning hover:bg-warning/90 text-warning-foreground"
+                    <CheckCircle size={18} className="mr-2" weight="bold" />
+                    Execute Resolution
                   </Button>
                 )}
+
 
                 {selectedIncident.status === 'resolved' && (
                   <Button variant="outline" onClick={() => setSelectedIncident(null)}>
