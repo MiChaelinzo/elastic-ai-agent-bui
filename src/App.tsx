@@ -187,14 +187,8 @@ function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
 
 function App() {
   const [authState, setAuthState, deleteAuthState] = useKV<AuthState>('auth-state', {
-    isAuthenticated: true,
-    user: {
-      id: 'guest',
-      email: 'guest@demo.local',
-      name: 'Guest User',
-      role: 'viewer',
-      createdAt: Date.now()
-    },
+    isAuthenticated: false,
+    user: null,
     mode: 'demo',
     hasCompletedOnboarding: false
   })
@@ -206,7 +200,13 @@ function App() {
   
   useEffect(() => {
     const initializeApp = async () => {
-      console.log('App initializing, current authState:', authState)
+      console.log('App initializing...')
+      console.log('Auth State:', {
+        isAuthenticated: authState?.isAuthenticated,
+        hasUser: !!authState?.user,
+        mode: authState?.mode,
+        hasCompletedOnboarding: authState?.hasCompletedOnboarding
+      })
       setIsInitialized(true)
     }
     initializeApp()
@@ -856,14 +856,8 @@ function App() {
     await deleteAuthState()
     setTimeout(() => {
       setAuthState({
-        isAuthenticated: true,
-        user: {
-          id: 'guest',
-          email: 'guest@demo.local',
-          name: 'Guest User',
-          role: 'viewer',
-          createdAt: Date.now()
-        },
+        isAuthenticated: false,
+        user: null,
         mode: 'demo',
         hasCompletedOnboarding: false
       })
