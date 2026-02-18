@@ -229,8 +229,19 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
       }
     }
 
+    let lastFrameTime = 0
+    const targetFPS = 30 // Limit to 30 FPS for better performance
+    const frameInterval = 1000 / targetFPS
+
     const animate = (time: number) => {
       if (!ctx) return
+
+      // Throttle to target FPS
+      if (time - lastFrameTime < frameInterval) {
+        animationFrameId = requestAnimationFrame(animate)
+        return
+      }
+      lastFrameTime = time
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 

@@ -2037,23 +2037,25 @@ function App() {
           </div>
 
           <Tabs defaultValue="all" className="space-y-3">
-            <TabsList className="grid w-full max-w-3xl grid-cols-4">
-              <TabsTrigger value="all">
-                All ({filteredIncidents.length})
-              </TabsTrigger>
-              <TabsTrigger value="active">
-                Active ({activeIncidents.length})
-              </TabsTrigger>
-              <TabsTrigger value="pending" className="relative">
-                Pending Approval ({pendingApprovalIncidents.length})
-                {pendingApprovalIncidents.length > 0 && (
-                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="resolved">
-                Resolved ({resolvedIncidents.length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="relative w-full overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="all" className="whitespace-nowrap">
+                  All ({filteredIncidents.length})
+                </TabsTrigger>
+                <TabsTrigger value="active" className="whitespace-nowrap">
+                  Active ({activeIncidents.length})
+                </TabsTrigger>
+                <TabsTrigger value="pending" className="relative whitespace-nowrap">
+                  Pending Approval ({pendingApprovalIncidents.length})
+                  {pendingApprovalIncidents.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="resolved" className="whitespace-nowrap">
+                  Resolved ({resolvedIncidents.length})
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="all" className="space-y-4">
               {filteredIncidents.length === 0 ? (
@@ -2407,25 +2409,27 @@ function App() {
               </DialogHeader>
 
               <Tabs defaultValue="details" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="details">Details & Analysis</TabsTrigger>
-                  <TabsTrigger value="discussion">
-                    Team Discussion
-                    {incidentComments.length > 0 && (
-                      <Badge variant="secondary" className="ml-2">
-                        {incidentComments.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="activity">
-                    Activity Timeline
-                    {incidentActivities.length > 0 && (
-                      <Badge variant="secondary" className="ml-2">
-                        {incidentActivities.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
+                <div className="relative w-full overflow-x-auto scrollbar-hide">
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    <TabsTrigger value="details" className="whitespace-nowrap">Details & Analysis</TabsTrigger>
+                    <TabsTrigger value="discussion" className="whitespace-nowrap">
+                      Team Discussion
+                      {incidentComments.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {incidentComments.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="activity" className="whitespace-nowrap">
+                      Activity Timeline
+                      {incidentActivities.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {incidentActivities.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 <TabsContent value="details" className="space-y-6 py-4">
                   {(knowledgeArticles || []).length > 0 && (
@@ -2569,36 +2573,38 @@ function App() {
           </DialogHeader>
 
           <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as 'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly' | 'mode')} className="py-4">
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="mode" className="flex items-center gap-2">
-                <Database size={18} weight="duotone" />
-                Data Source
-              </TabsTrigger>
-              <TabsTrigger value="confidence" className="flex items-center gap-2">
-                <ShieldCheck size={18} weight="duotone" />
-                Agent Settings
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
-                <Bell size={18} weight="duotone" />
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger value="priority" className="flex items-center gap-2">
-                <ListBullets size={18} weight="duotone" />
-                Priority Queue
-              </TabsTrigger>
-              <TabsTrigger value="anomaly" className="flex items-center gap-2">
-                <Sliders size={18} weight="duotone" />
-                Anomaly Detection
-              </TabsTrigger>
-              <TabsTrigger value="voice" className="flex items-center gap-2">
-                <Microphone size={18} weight="duotone" />
-                Voice
-              </TabsTrigger>
-              <TabsTrigger value="background" className="flex items-center gap-2">
-                <PaintBrush size={18} weight="duotone" />
-                Background
-              </TabsTrigger>
-            </TabsList>
+            <div className="relative w-full overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="mode" className="flex items-center gap-2 whitespace-nowrap">
+                  <Database size={18} weight="duotone" />
+                  Data Source
+                </TabsTrigger>
+                <TabsTrigger value="confidence" className="flex items-center gap-2 whitespace-nowrap">
+                  <ShieldCheck size={18} weight="duotone" />
+                  Agent Settings
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="flex items-center gap-2 whitespace-nowrap">
+                  <Bell size={18} weight="duotone" />
+                  Notifications
+                </TabsTrigger>
+                <TabsTrigger value="priority" className="flex items-center gap-2 whitespace-nowrap">
+                  <ListBullets size={18} weight="duotone" />
+                  Priority Queue
+                </TabsTrigger>
+                <TabsTrigger value="anomaly" className="flex items-center gap-2 whitespace-nowrap">
+                  <Sliders size={18} weight="duotone" />
+                  Anomaly Detection
+                </TabsTrigger>
+                <TabsTrigger value="voice" className="flex items-center gap-2 whitespace-nowrap">
+                  <Microphone size={18} weight="duotone" />
+                  Voice
+                </TabsTrigger>
+                <TabsTrigger value="background" className="flex items-center gap-2 whitespace-nowrap">
+                  <PaintBrush size={18} weight="duotone" />
+                  Background
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="mode" className="space-y-4 mt-6">
               <ModeSwitcher

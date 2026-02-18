@@ -44,88 +44,57 @@ export function MouseTrail() {
       }
     }
 
-    const animate = () => {
+    let lastFrameTime = 0
+    const targetFPS = 30 // Limit to 30 FPS for better performance
+    const frameInterval = 1000 / targetFPS
+
+    const animate = (time: number) => {
       if (!ctx) return
+
+      // Throttle to target FPS
+      if (time - lastFrameTime < frameInterval) {
+        animationFrameId = requestAnimationFrame(animate)
+        return
+      }
+      lastFrameTime = time
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       trailPointsRef.current = trailPointsRef.current.filter(point => {
         point.age += 1
-        return point.age < 60
+        return point.age < 40 // Reduce trail length for performance
       })
+
+      // Limit max trail points
+      if (trailPointsRef.current.length > 40) {
+        trailPointsRef.current = trailPointsRef.current.slice(-40)
+      }
 
       trailPointsRef.current.forEach((point, index) => {
         const nextPoint = trailPointsRef.current[index + 1]
         
         if (nextPoint) {
-          const dx = nextPoint.x - point.x
-          const dy = nextPoint.y - point.y
-          
           ctx.beginPath()
           ctx.moveTo(point.x, point.y)
           ctx.lineTo(nextPoint.x, nextPoint.y)
           
-          const opacity = (1 - point.age / 60) * 0.6
-          const gradient = ctx.createLinearGradient(point.x, point.y, nextPoint.x, nextPoint.y)
+          const opacity = (1 - point.age / 40) * 0.5
           
-          gradient.addColorStop(0, `rgba(139, 170, 240, ${opacity})`)
-          gradient.addColorStop(1, `rgba(67, 207, 124, ${opacity * 0.8})`)
-          
-          ctx.strokeStyle = gradient
-          ctx.lineWidth = 3 * (1 - point.age / 60)
+          ctx.strokeStyle = `rgba(139, 170, 240, ${opacity})`
+          ctx.lineWidth = 2 * (1 - point.age / 40)
           ctx.lineCap = 'round'
           ctx.stroke()
         }
 
-        const size = 4 * (1 - point.age / 60)
-        const opacity = (1 - point.age / 60) * 0.8
+        const size = 3 * (1 - point.age / 40)
+        const opacity = (1 - point.age / 40) * 0.6
         
         ctx.beginPath()
         ctx.arc(point.x, point.y, size, 0, Math.PI * 2)
         
-        const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size)
-        gradient.addColorStop(0, `rgba(139, 170, 240, ${opacity})`)
-        gradient.addColorStop(0.5, `rgba(103, 189, 170, ${opacity * 0.7})`)
-        gradient.addColorStop(1, `rgba(67, 207, 124, ${opacity * 0.3})`)
-        
-        ctx.fillStyle = gradient
-        ctx.shadowBlur = 10
-        ctx.shadowColor = `rgba(139, 170, 240, ${opacity})`
+        ctx.fillStyle = `rgba(139, 170, 240, ${opacity})`
         ctx.fill()
-        ctx.shadowBlur = 0
-
-        if (index % 8 === 0) {
-          ctx.beginPath()
-          ctx.arc(point.x, point.y, size * 2 + 5, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(139, 170, 240, ${opacity * 0.3})`
-          ctx.lineWidth = 1
-          ctx.stroke()
-        }
       })
-
-      if (trailPointsRef.current.length > 2) {
-        const recentPoints = trailPointsRef.current.slice(-8)
-        
-        for (let i = 0; i < recentPoints.length - 1; i++) {
-          for (let j = i + 2; j < recentPoints.length; j++) {
-            const p1 = recentPoints[i]
-            const p2 = recentPoints[j]
-            const dx = p2.x - p1.x
-            const dy = p2.y - p1.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
-
-            if (distance < 50) {
-              ctx.beginPath()
-              ctx.moveTo(p1.x, p1.y)
-              ctx.lineTo(p2.x, p2.y)
-              const opacity = (1 - distance / 50) * 0.15 * (1 - p1.age / 60)
-              ctx.strokeStyle = `rgba(139, 170, 240, ${opacity})`
-              ctx.lineWidth = 1
-              ctx.stroke()
-            }
-          }
-        }
-      }
 
       animationFrameId = requestAnimationFrame(animate)
     }
