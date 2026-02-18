@@ -1554,8 +1554,10 @@ function App() {
 
   console.log('Rendering with authState:', authState)
 
-  if (!authState?.hasCompletedOnboarding) {
-    console.log('Showing WelcomeScreen - onboarding not completed')
+  const shouldShowOnboarding = !authState || !authState.isAuthenticated || !authState.hasCompletedOnboarding
+
+  if (shouldShowOnboarding) {
+    console.log('Showing WelcomeScreen - not authenticated or onboarding not completed')
     return (
       <>
         <WelcomeScreen onSelectMode={handleSelectMode} />
