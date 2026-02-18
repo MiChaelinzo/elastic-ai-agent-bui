@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -9,17 +8,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { User as UserIcon, SignOut, Gear } from '@phosphor-icons/react'
+import { User as UserIcon, SignOut, Gear, UserCircle } from '@phosphor-icons/react'
 import type { User } from '@/lib/auth-types'
 import { Badge } from '@/components/ui/badge'
 
 interface UserMenuProps {
   user: User | null
   onSettings?: () => void
+  onProfile?: () => void
   onLogout?: () => void
 }
 
-export function UserMenu({ user, onSettings, onLogout }: UserMenuProps) {
+export function UserMenu({ user, onSettings, onProfile, onLogout }: UserMenuProps) {
   if (!user) return null
 
   const initials = user.name
@@ -68,6 +68,12 @@ export function UserMenu({ user, onSettings, onLogout }: UserMenuProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {onProfile && (
+          <DropdownMenuItem onClick={onProfile}>
+            <UserCircle className="mr-2 h-4 w-4" weight="duotone" />
+            <span>My Profile</span>
+          </DropdownMenuItem>
+        )}
         {onSettings && (
           <DropdownMenuItem onClick={onSettings}>
             <Gear className="mr-2 h-4 w-4" weight="duotone" />
@@ -78,7 +84,7 @@ export function UserMenu({ user, onSettings, onLogout }: UserMenuProps) {
         {onLogout && (
           <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
             <SignOut className="mr-2 h-4 w-4" weight="duotone" />
-            <span>Reset to Welcome Screen</span>
+            <span>Log Out</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

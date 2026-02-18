@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
+import { LoginScreen } from '@/components/LoginScreen'
+import { UserProfileDialog } from '@/components/UserProfileDialog'
 import { APIConfigurationDialog } from '@/components/APIConfigurationDialog'
 import { ModeSwitcher } from '@/components/ModeSwitcher'
 import { UserMenu } from '@/components/UserMenu'
 import type { AuthState, APIConfig, User } from '@/lib/auth-types'
+import { registerUser, loginUser, logoutUser, getCurrentSession } from '@/lib/auth-service'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -196,6 +199,8 @@ function App() {
   const [apiConfig, setApiConfig] = useKV<APIConfig | null>('api-config', null)
   const [showAPIConfig, setShowAPIConfig] = useState(false)
   const [showModeSelection, setShowModeSelection] = useState(false)
+  const [showProfileDialog, setShowProfileDialog] = useState(false)
+  const [showLoginScreen, setShowLoginScreen] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   
   useEffect(() => {
@@ -844,7 +849,44 @@ function App() {
     }
   }, [agents.length, agentTeams?.length])
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getCurrentSession()
+      if (session) {
+        setAuthState({
+          isAuthenticated: true,
+          user: session,
+          mode: authState?.mode || 'demo',
+          hasCompletedOnboarding: true
+        })
+      }
+    }
+    checkAuth()
+  }, [])
+
+  const handleLogin = useCallback(async (user: User) => {
+    setAuthState({
+      isAuthenticated: true,
+      user,
+      mode: authState?.mode || 'demo',
+      hasCompletedOnboarding: true
+    })
+    setShowLoginScreen(false)
+    toast.success(`Welcome back, ${user.name}!`)
+    
+    if ((incidents || []).length === 0 && authState?.mode === 'demo') {
+      setTimeout(() => {
+        handleLoadSampleData()
+      }, 500)
+    }
+  }, [authState, incidents, setAuthState])
+
+  const handleRegister = useCallback(async (email: string, password: string, name: string) => {
+    return await registerUser(email, password, name)
+  }, [])
+
   const handleLogout = useCallback(async () => {
+    await logoutUser()
     await deleteAuthState()
     setTimeout(() => {
       setAuthState({
@@ -853,11 +895,48 @@ function App() {
         mode: 'demo',
         hasCompletedOnboarding: false
       })
-      toast.success('Resetting to welcome screen', {
-        description: 'Restart your onboarding experience'
+      setShowLoginScreen(true)
+      toast.success('Logged out successfully', {
+        description: 'You have been securely logged out'
       })
     }, 100)
   }, [setAuthState, deleteAuthState])
+
+  const handleDemoMode = useCallback(() => {
+    const demoUser: User = {
+      id: 'demo-user',
+      email: 'demo@example.com',
+      name: 'Demo User',
+      role: 'viewer',
+      createdAt: Date.now()
+    }
+    setAuthState({
+      isAuthenticated: true,
+      user: demoUser,
+      mode: 'demo',
+      hasCompletedOnboarding: true
+    })
+    setShowLoginScreen(false)
+    toast.success('Welcome to demo mode!')
+    
+    if ((incidents || []).length === 0) {
+      setTimeout(() => {
+        handleLoadSampleData()
+      }, 500)
+    }
+  }, [setAuthState, incidents])
+
+  const handleProfileUpdate = useCallback((updatedUser: User) => {
+    setAuthState((current) => ({
+      ...(current || {
+        isAuthenticated: false,
+        user: null,
+        mode: 'demo',
+        hasCompletedOnboarding: false
+      }),
+      user: updatedUser
+    }))
+  }, [setAuthState])
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -1558,29 +1637,20 @@ function App() {
     )
   }
 
-  const shouldShowOnboarding = !authState.isAuthenticated || !authState.hasCompletedOnboarding
+  const shouldShowLogin = !authState.isAuthenticated || !authState.hasCompletedOnboarding || showLoginScreen
 
-  if (shouldShowOnboarding) {
+  if (shouldShowLogin) {
     return (
       <>
-        <WelcomeScreen onSelectMode={handleSelectMode} />
+        <LoginScreen 
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+          onDemoMode={handleDemoMode}
+        />
         <APIConfigurationDialog
           isOpen={showAPIConfig}
           onClose={() => {
             setShowAPIConfig(false)
-            const newAuthState: AuthState = {
-              isAuthenticated: true,
-              user: {
-                id: 'guest',
-                email: 'guest@demo.local',
-                name: 'Guest User',
-                role: 'viewer',
-                createdAt: Date.now()
-              },
-              mode: 'demo',
-              hasCompletedOnboarding: true
-            }
-            setAuthState(newAuthState)
           }}
           onSave={handleSaveAPIConfig}
           initialConfig={apiConfig || undefined}
@@ -1636,6 +1706,7 @@ function App() {
               <UserMenu 
                 user={authState?.user || null} 
                 onSettings={() => setShowSettings(true)}
+                onProfile={() => setShowProfileDialog(true)}
                 onLogout={handleLogout}
               />
               <ThemeToggle />
@@ -2999,6 +3070,13 @@ function App() {
           onClose={() => setShowAttachmentGallery(false)}
         />
       )}
+
+      <UserProfileDialog
+        user={authState?.user || null}
+        isOpen={showProfileDialog}
+        onClose={() => setShowProfileDialog(false)}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </div>
   )
 }
