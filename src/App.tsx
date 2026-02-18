@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { LoginScreen } from '@/components/LoginScreen'
@@ -202,12 +202,14 @@ function App() {
   const [showProfileDialog, setShowProfileDialog] = useState(false)
   const [showLoginScreen, setShowLoginScreen] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
   
   useEffect(() => {
-    if (authState !== undefined) {
+    if (authState !== undefined && !hasCheckedAuth) {
       setIsInitialized(true)
+      setHasCheckedAuth(true)
     }
-  }, [authState])
+  }, [authState, hasCheckedAuth])
   
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
@@ -238,12 +240,12 @@ function App() {
   const [notificationSettings, setNotificationSettings] = useKV<NotificationSettings>('notification-settings', defaultNotificationSettings)
   
   const [backgroundSettings, setBackgroundSettings] = useKV<BackgroundSettings>('background-settings', {
-    particleDensity: 100,
-    particleSpeed: 100,
-    nodeSpeed: 100,
-    showGrid: true,
+    particleDensity: 30,
+    particleSpeed: 50,
+    nodeSpeed: 50,
+    showGrid: false,
     showConnections: true,
-    showDataFlows: true
+    showDataFlows: false
   })
   
   const [settingsTab, setSettingsTab] = useState<'confidence' | 'notifications' | 'background' | 'priority' | 'anomaly' | 'mode'>('confidence')
@@ -847,22 +849,28 @@ function App() {
         setAgentTeams([team1, team2])
       }
     }
-  }, [agents.length, agentTeams?.length])
+  }, [agents.length, agentTeams?.length, setAgentTeams])
 
   useEffect(() => {
+    if (hasCheckedAuth) return
+    
     const checkAuth = async () => {
-      const session = await getCurrentSession()
-      if (session) {
-        setAuthState({
-          isAuthenticated: true,
-          user: session,
-          mode: authState?.mode || 'demo',
-          hasCompletedOnboarding: true
-        })
+      try {
+        const session = await getCurrentSession()
+        if (session && authState) {
+          setAuthState({
+            isAuthenticated: true,
+            user: session,
+            mode: authState.mode || 'demo',
+            hasCompletedOnboarding: true
+          })
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error)
       }
     }
     checkAuth()
-  }, [])
+  }, [hasCheckedAuth])
 
   const handleLogin = useCallback(async (user: User) => {
     setAuthState({
@@ -1626,7 +1634,7 @@ function App() {
     }
   }
 
-  if (!isInitialized || authState === undefined) {
+  if (!isInitialized) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -1637,9 +1645,9 @@ function App() {
     )
   }
 
-  const shouldShowLogin = !authState.isAuthenticated || !authState.hasCompletedOnboarding || showLoginScreen
+  const shouldShowLogin = !authState?.isAuthenticated || !authState?.hasCompletedOnboarding
 
-  if (shouldShowLogin) {
+  if (shouldShowLogin && !showLoginScreen) {
     return (
       <>
         <LoginScreen 
@@ -1662,14 +1670,13 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
-        particleDensity: 100,
-        particleSpeed: 100,
-        nodeSpeed: 100,
-        showGrid: true,
+        particleDensity: 30,
+        particleSpeed: 50,
+        nodeSpeed: 50,
+        showGrid: false,
         showConnections: true,
-        showDataFlows: true
+        showDataFlows: false
       }} />
-      <MouseTrail />
       
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-6 py-4">
