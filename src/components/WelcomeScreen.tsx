@@ -2,10 +2,18 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Lightning, Sparkle, ChartLine, Brain, Database, Play, Gear } from '@phosphor-icons/react'
+import { Lightning, Sparkle, ChartLine, Brain, Database, Play, Gear, Rocket } from '@phosphor-icons/react'
 
 interface WelcomeScreenProps {
   onSelectMode: (mode: 'demo' | 'api') => void
+}
+
+const ANIMATION_DELAY = {
+  logo: 0.1,
+  title: 0.2,
+  subtitle: 0.3,
+  features: 0.4,
+  cards: 0.6
 }
 
 export function WelcomeScreen({ onSelectMode }: WelcomeScreenProps) {
@@ -45,50 +53,64 @@ export function WelcomeScreen({ onSelectMode }: WelcomeScreenProps) {
         transition={{ duration: 0.6 }}
         className="max-w-6xl w-full relative z-10"
       >
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-2xl mb-6 shadow-lg"
+            initial={{ scale: 0.5, opacity: 0, rotate: -180 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ delay: ANIMATION_DELAY.logo, type: 'spring', stiffness: 200 }}
+            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-2xl mb-4 shadow-xl shadow-primary/30"
           >
             <Lightning size={48} weight="duotone" className="text-primary-foreground" />
           </motion.div>
           
           <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: ANIMATION_DELAY.title }}
+            className="text-5xl font-bold mb-3 bg-gradient-to-r from-foreground via-primary to-foreground/70 bg-clip-text text-transparent"
           >
-            Elastic Agent Orchestrator
+            Welcome to Elastic Agent Orchestrator
           </motion.h1>
           
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-xl text-muted-foreground max-w-2xl mx-auto"
+            transition={{ delay: ANIMATION_DELAY.subtitle }}
+            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-1"
           >
-            AI-Powered DevOps Incident Response Platform with Multi-Agent Intelligence
+            AI-Powered DevOps Incident Response with Multi-Agent Intelligence
           </motion.p>
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: ANIMATION_DELAY.subtitle + 0.1 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 rounded-full text-sm text-accent font-medium mt-2"
+          >
+            <Rocket size={16} weight="fill" />
+            Get started in seconds
+          </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + index * 0.1 }}
+              transition={{ delay: ANIMATION_DELAY.features + index * 0.08 }}
             >
-              <Card className="bg-card/50 backdrop-blur border-border/50 hover:border-primary/50 transition-all duration-300">
+              <Card className="bg-card/50 backdrop-blur border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 h-full">
                 <CardHeader className="pb-3">
-                  <feature.icon size={32} weight="duotone" className="text-primary mb-2" />
-                  <CardTitle className="text-base">{feature.title}</CardTitle>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 bg-primary/10 rounded-lg">
+                      <feature.icon size={24} weight="duotone" className="text-primary" />
+                    </div>
+                  </div>
+                  <CardTitle className="text-sm">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm">
+                  <CardDescription className="text-xs leading-relaxed">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -98,9 +120,19 @@ export function WelcomeScreen({ onSelectMode }: WelcomeScreenProps) {
         </div>
 
         <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: ANIMATION_DELAY.cards - 0.1 }}
+          className="text-center mb-4"
+        >
+          <h2 className="text-2xl font-bold mb-2">Choose Your Starting Point</h2>
+          <p className="text-muted-foreground text-sm">Select how you want to explore the platform</p>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: ANIMATION_DELAY.cards }}
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           <Card
@@ -216,10 +248,15 @@ export function WelcomeScreen({ onSelectMode }: WelcomeScreenProps) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
-          className="text-center mt-8 text-sm text-muted-foreground"
+          transition={{ delay: ANIMATION_DELAY.cards + 0.5 }}
+          className="text-center mt-6 space-y-2"
         >
-          You can switch between modes anytime from Settings
+          <p className="text-sm text-muted-foreground">
+            💡 You can switch between modes anytime from Settings
+          </p>
+          <p className="text-xs text-muted-foreground/70">
+            No account required • Full feature access • Data stored locally
+          </p>
         </motion.div>
       </motion.div>
     </div>

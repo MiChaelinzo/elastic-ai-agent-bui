@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
-import { LoginScreen } from '@/components/LoginScreen'
 import { APIConfigurationDialog } from '@/components/APIConfigurationDialog'
 import { ModeSwitcher } from '@/components/ModeSwitcher'
 import { UserMenu } from '@/components/UserMenu'
@@ -188,8 +187,14 @@ function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
 
 function App() {
   const [authState, setAuthState, deleteAuthState] = useKV<AuthState>('auth-state', {
-    isAuthenticated: false,
-    user: null,
+    isAuthenticated: true,
+    user: {
+      id: 'guest',
+      email: 'guest@demo.local',
+      name: 'Guest User',
+      role: 'viewer',
+      createdAt: Date.now()
+    },
     mode: 'demo',
     hasCompletedOnboarding: false
   })
@@ -850,13 +855,19 @@ function App() {
   const handleLogout = useCallback(() => {
     deleteAuthState()
     setAuthState({
-      isAuthenticated: false,
-      user: null,
+      isAuthenticated: true,
+      user: {
+        id: 'guest',
+        email: 'guest@demo.local',
+        name: 'Guest User',
+        role: 'viewer',
+        createdAt: Date.now()
+      },
       mode: 'demo',
       hasCompletedOnboarding: false
     })
-    toast.success('Signed out successfully', {
-      description: 'You have been logged out'
+    toast.success('Resetting to welcome screen', {
+      description: 'Restart your onboarding experience'
     })
   }, [setAuthState, deleteAuthState])
 
@@ -1471,45 +1482,19 @@ function App() {
     }
   }
 
-  const handleLogin = async (email: string, name: string) => {
-    const user: User = {
-      id: Date.now().toString(),
-      email,
-      name,
-      role: 'admin',
-      createdAt: Date.now()
-    }
-
-    setAuthState((current) => ({
-      isAuthenticated: true,
-      user,
-      mode: current?.mode || 'demo',
-      hasCompletedOnboarding: current?.hasCompletedOnboarding || false
-    }))
-  }
-
-  const handleSkipLogin = () => {
-    setAuthState((current) => ({
-      isAuthenticated: true,
-      user: {
-        id: 'guest',
-        email: 'guest@demo.local',
-        name: 'Guest User',
-        role: 'viewer',
-        createdAt: Date.now()
-      },
-      mode: current?.mode || 'demo',
-      hasCompletedOnboarding: current?.hasCompletedOnboarding || false
-    }))
-  }
-
   const handleSelectMode = (mode: 'demo' | 'api') => {
     if (mode === 'api') {
       setShowAPIConfig(true)
     } else {
       setAuthState((current) => ({
-        isAuthenticated: current?.isAuthenticated ?? false,
-        user: current?.user ?? null,
+        isAuthenticated: true,
+        user: current?.user ?? {
+          id: 'guest',
+          email: 'guest@demo.local',
+          name: 'Guest User',
+          role: 'viewer',
+          createdAt: Date.now()
+        },
         mode: 'demo',
         hasCompletedOnboarding: true
       }))
@@ -1523,8 +1508,14 @@ function App() {
   const handleSaveAPIConfig = (config: APIConfig) => {
     setApiConfig(config)
     setAuthState((current) => ({
-      isAuthenticated: current?.isAuthenticated ?? false,
-      user: current?.user ?? null,
+      isAuthenticated: true,
+      user: current?.user ?? {
+        id: 'guest',
+        email: 'guest@demo.local',
+        name: 'Guest User',
+        role: 'viewer',
+        createdAt: Date.now()
+      },
       mode: 'api',
       hasCompletedOnboarding: true
     }))
@@ -1536,8 +1527,14 @@ function App() {
       setShowAPIConfig(true)
     } else {
       setAuthState((current) => ({
-        isAuthenticated: current?.isAuthenticated ?? false,
-        user: current?.user ?? null,
+        isAuthenticated: true,
+        user: current?.user ?? {
+          id: 'guest',
+          email: 'guest@demo.local',
+          name: 'Guest User',
+          role: 'viewer',
+          createdAt: Date.now()
+        },
         mode: newMode,
         hasCompletedOnboarding: current?.hasCompletedOnboarding ?? false
       }))
@@ -1561,11 +1558,6 @@ function App() {
 
   console.log('Rendering with authState:', authState)
 
-  if (!authState?.isAuthenticated) {
-    console.log('Showing LoginScreen - user not authenticated')
-    return <LoginScreen onLogin={handleLogin} onSkip={handleSkipLogin} />
-  }
-
   if (!authState?.hasCompletedOnboarding) {
     console.log('Showing WelcomeScreen - onboarding not completed')
     return (
@@ -1576,8 +1568,14 @@ function App() {
           onClose={() => {
             setShowAPIConfig(false)
             setAuthState((current) => ({
-              isAuthenticated: current?.isAuthenticated ?? false,
-              user: current?.user ?? null,
+              isAuthenticated: true,
+              user: current?.user ?? {
+                id: 'guest',
+                email: 'guest@demo.local',
+                name: 'Guest User',
+                role: 'viewer',
+                createdAt: Date.now()
+              },
               mode: 'demo',
               hasCompletedOnboarding: true
             }))

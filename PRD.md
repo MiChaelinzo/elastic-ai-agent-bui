@@ -2,26 +2,33 @@
 
 An enterprise-grade intelligent DevOps Incident Response Platform that automates incident detection, diagnosis, and resolution using multi-agent orchestration with Elastic Agent Builder's reasoning models and tools. Now enhanced with SLA management, knowledge base, real-time collaboration, dependency mapping, advanced analytics, and flexible deployment modes (demo or API integration).
 
-**First-Time User Experience**: On initial access, users are greeted with a professional login screen followed by a comprehensive onboarding flow that guides them through mode selection (Demo vs API). This ensures smooth adoption whether evaluating features or deploying to production.
+**First-Time User Experience**: On initial access, users are immediately greeted with a streamlined onboarding flow showcasing an animated welcome screen where they can choose between Demo Mode (instant access with sample data) or API Mode (connect to Elasticsearch). No login required - users can get started in seconds and explore all features immediately.
 
 **Experience Qualities**:
 1. **Intelligent** - The system should feel like having an expert DevOps engineer analyzing and resolving issues autonomously with AI-powered insights
 2. **Transparent** - Every agent decision, reasoning step, and action should be visible and explainable to build trust with complete audit trails
-3. **Responsive** - Real-time updates and instant feedback as agents work through incident response workflows with live collaboration
+3. **Responsive** - Real-time updates and instant feedback as agents work through incident response workflows with live collaboration and animated metrics
 4. **Enterprise-Ready** - SLA tracking, compliance reporting, knowledge management, and team collaboration for production environments
-5. **Flexible** - Seamlessly switch between demo mode for evaluation and API mode for production deployments
+5. **Frictionless** - Zero barriers to entry, instant onboarding, seamless mode switching, and intuitive workflows
 
 **Complexity Level**: Complex Application (advanced functionality, multiple views, enterprise features)
 This showcases multi-agent orchestration where different specialized agents (Detector, Analyzer, Resolver, Verifier) collaborate to handle incident response workflows, demonstrating the full power of Elastic Agent Builder's reasoning capabilities and tool integrations. Now includes enterprise features for operational excellence, team collaboration, business intelligence, and flexible data source configuration.
 
 ## Essential Features
 
-**Welcome Screen & Authentication**
-- Functionality: Professional welcome screen with mode selection (Demo vs API) and user authentication
-- Purpose: Provides smooth onboarding experience and allows users to choose between evaluation and production modes
-- Trigger: First-time application launch or when not authenticated
-- Progression: View welcome screen → Choose Demo mode (instant access) or API mode (configure connections) → Optionally sign in or continue as guest → Begin using platform
-- Success criteria: Users can easily understand their options, complete onboarding in under 30 seconds, and access all features appropriate to their chosen mode
+**Instant Welcome & Mode Selection**
+- Functionality: Beautiful animated welcome screen that presents two clear paths: Demo Mode (instant access) or API Mode (connect data sources)
+- Purpose: Eliminates friction and allows users to explore full functionality immediately without any authentication barriers
+- Trigger: First-time application access or when hasCompletedOnboarding is false
+- Progression: View animated welcome screen with feature highlights → Choose Demo mode (loads sample data instantly) OR API mode (opens configuration dialog) → Start using platform immediately
+- Success criteria: Users complete onboarding in under 10 seconds, understand their mode choice, see live animated transitions, and can access all features without authentication
+
+**Real-Time Live Stats Dashboard**
+- Functionality: Animated metrics dashboard that updates in real-time with pulsing effects, number transitions, and visual highlights when values change
+- Purpose: Provides immediate visual feedback showing the system is actively monitoring and responding to incidents
+- Trigger: Automatically updates whenever incident data changes with smooth animations
+- Progression: View dashboard → See metrics pulse when active/pending incidents exist → Watch numbers animate when values change → Notice border highlights on updated cards
+- Success criteria: Metrics feel "alive" with visible animations, users can see changes happen in real-time, active/pending items pulse to draw attention
 
 **API Configuration & Integration**
 - Functionality: Comprehensive API configuration dialog for connecting to Elasticsearch clusters, Slack, and email services
@@ -80,11 +87,11 @@ This showcases multi-agent orchestration where different specialized agents (Det
 - Success criteria: Users can navigate, create incidents, filter data, start/approve workflows, open dashboards, and control all major functions using only voice commands with high accuracy (>70% confidence threshold)
 
 **Real-Time Metrics Dashboard**
-- Functionality: Live overview displaying key performance indicators including total incidents, resolution rates, average resolution time, active incidents, pending approvals, and failed incidents
-- Purpose: Provides at-a-glance visibility into system health and agent performance for informed decision-making
-- Trigger: Automatically updates as incidents change status or new incidents are created
-- Progression: View dashboard → Monitor real-time metrics → Identify trends → Take action on outliers
-- Success criteria: Metrics update in real-time, show accurate counts and calculations, and provide actionable insights
+- Functionality: Live animated overview displaying key performance indicators with smooth transitions, pulsing effects for active items, and visual highlights when metrics change
+- Purpose: Provides at-a-glance visibility into system health and agent performance with engaging visual feedback that makes the data feel alive
+- Trigger: Automatically updates as incidents change status or new incidents are created, with immediate animations
+- Progression: View dashboard → See real-time metric updates with number animations → Notice pulsing icons for active/pending incidents → Watch cards highlight when values change → Identify trends and outliers
+- Success criteria: Metrics update instantly with smooth animations, active/pending items pulse to draw attention, cards highlight briefly when values change, and users feel the system is actively working
 
 **Incident Analytics & Visualization**
 - Functionality: Interactive charts and graphs showing incident distribution by severity, status breakdown, 7-day timeline trends, and agent performance metrics with confidence levels
