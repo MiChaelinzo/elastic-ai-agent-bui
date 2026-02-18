@@ -197,16 +197,11 @@ function App() {
   const [showAPIConfig, setShowAPIConfig] = useState(false)
   const [showModeSelection, setShowModeSelection] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   
   useEffect(() => {
-    const initializeApp = async () => {
-      if (authState !== undefined) {
-        setIsAuthLoaded(true)
-        setIsInitialized(true)
-      }
+    if (authState !== undefined) {
+      setIsInitialized(true)
     }
-    initializeApp()
   }, [authState])
   
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
@@ -1479,9 +1474,9 @@ function App() {
     if (mode === 'api') {
       setShowAPIConfig(true)
     } else {
-      setAuthState((current) => ({
+      const newAuthState: AuthState = {
         isAuthenticated: true,
-        user: current?.user ?? {
+        user: {
           id: 'guest',
           email: 'guest@demo.local',
           name: 'Guest User',
@@ -1490,19 +1485,22 @@ function App() {
         },
         mode: 'demo',
         hasCompletedOnboarding: true
-      }))
-      
-      if ((incidents || []).length === 0) {
-        handleLoadSampleData()
       }
+      setAuthState(newAuthState)
+      
+      setTimeout(() => {
+        if ((incidents || []).length === 0) {
+          handleLoadSampleData()
+        }
+      }, 100)
     }
   }
 
   const handleSaveAPIConfig = (config: APIConfig) => {
     setApiConfig(config)
-    setAuthState((current) => ({
+    const newAuthState: AuthState = {
       isAuthenticated: true,
-      user: current?.user ?? {
+      user: {
         id: 'guest',
         email: 'guest@demo.local',
         name: 'Guest User',
@@ -1511,7 +1509,8 @@ function App() {
       },
       mode: 'api',
       hasCompletedOnboarding: true
-    }))
+    }
+    setAuthState(newAuthState)
     setShowAPIConfig(false)
   }
 
@@ -1519,9 +1518,16 @@ function App() {
     if (newMode === 'api' && !apiConfig) {
       setShowAPIConfig(true)
     } else {
-      setAuthState((current) => ({
+      const currentState = authState || {
+        isAuthenticated: false,
+        user: null,
+        mode: 'demo',
+        hasCompletedOnboarding: false
+      }
+      
+      const newAuthState: AuthState = {
         isAuthenticated: true,
-        user: current?.user ?? {
+        user: currentState.user ?? {
           id: 'guest',
           email: 'guest@demo.local',
           name: 'Guest User',
@@ -1529,16 +1535,19 @@ function App() {
           createdAt: Date.now()
         },
         mode: newMode,
-        hasCompletedOnboarding: current?.hasCompletedOnboarding ?? false
-      }))
+        hasCompletedOnboarding: true
+      }
+      setAuthState(newAuthState)
       
       if (newMode === 'demo' && (incidents || []).length === 0) {
-        handleLoadSampleData()
+        setTimeout(() => {
+          handleLoadSampleData()
+        }, 100)
       }
     }
   }
 
-  if (!isInitialized || !isAuthLoaded || !authState) {
+  if (!isInitialized || authState === undefined) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -1559,10 +1568,9 @@ function App() {
           isOpen={showAPIConfig}
           onClose={() => {
             setShowAPIConfig(false)
-            setAuthState((current) => ({
-              ...current!,
+            const newAuthState: AuthState = {
               isAuthenticated: true,
-              user: current?.user ?? {
+              user: {
                 id: 'guest',
                 email: 'guest@demo.local',
                 name: 'Guest User',
@@ -1571,7 +1579,8 @@ function App() {
               },
               mode: 'demo',
               hasCompletedOnboarding: true
-            }))
+            }
+            setAuthState(newAuthState)
           }}
           onSave={handleSaveAPIConfig}
           initialConfig={apiConfig || undefined}
