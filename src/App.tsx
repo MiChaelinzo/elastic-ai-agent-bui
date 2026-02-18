@@ -200,16 +200,13 @@ function App() {
   const [showAPIConfig, setShowAPIConfig] = useState(false)
   const [showModeSelection, setShowModeSelection] = useState(false)
   const [showProfileDialog, setShowProfileDialog] = useState(false)
-  const [showLoginScreen, setShowLoginScreen] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
   
   useEffect(() => {
-    if (authState !== undefined && !hasCheckedAuth) {
+    if (authState !== undefined) {
       setIsInitialized(true)
-      setHasCheckedAuth(true)
     }
-  }, [authState, hasCheckedAuth])
+  }, [authState])
   
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
@@ -851,27 +848,6 @@ function App() {
     }
   }, [agents.length, agentTeams?.length, setAgentTeams])
 
-  useEffect(() => {
-    if (hasCheckedAuth) return
-    
-    const checkAuth = async () => {
-      try {
-        const session = await getCurrentSession()
-        if (session && authState) {
-          setAuthState({
-            isAuthenticated: true,
-            user: session,
-            mode: authState.mode || 'demo',
-            hasCompletedOnboarding: true
-          })
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error)
-      }
-    }
-    checkAuth()
-  }, [hasCheckedAuth])
-
   const handleLogin = useCallback(async (user: User) => {
     setAuthState({
       isAuthenticated: true,
@@ -879,7 +855,6 @@ function App() {
       mode: authState?.mode || 'demo',
       hasCompletedOnboarding: true
     })
-    setShowLoginScreen(false)
     toast.success(`Welcome back, ${user.name}!`)
     
     if ((incidents || []).length === 0 && authState?.mode === 'demo') {
@@ -894,20 +869,26 @@ function App() {
   }, [])
 
   const handleLogout = useCallback(async () => {
-    await logoutUser()
-    await deleteAuthState()
-    setTimeout(() => {
+    try {
+      await logoutUser()
+      await deleteAuthState()
+      
       setAuthState({
         isAuthenticated: false,
         user: null,
         mode: 'demo',
         hasCompletedOnboarding: false
       })
-      setShowLoginScreen(true)
+      
+      setIsInitialized(true)
+      
       toast.success('Logged out successfully', {
         description: 'You have been securely logged out'
       })
-    }, 100)
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast.error('Logout failed')
+    }
   }, [setAuthState, deleteAuthState])
 
   const handleDemoMode = useCallback(() => {
@@ -924,7 +905,6 @@ function App() {
       mode: 'demo',
       hasCompletedOnboarding: true
     })
-    setShowLoginScreen(false)
     toast.success('Welcome to demo mode!')
     
     if ((incidents || []).length === 0) {
@@ -1647,7 +1627,7 @@ function App() {
 
   const shouldShowLogin = !authState?.isAuthenticated || !authState?.hasCompletedOnboarding
 
-  if (shouldShowLogin && !showLoginScreen) {
+  if (shouldShowLogin) {
     return (
       <>
         <LoginScreen 
