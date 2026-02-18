@@ -197,20 +197,17 @@ function App() {
   const [showAPIConfig, setShowAPIConfig] = useState(false)
   const [showModeSelection, setShowModeSelection] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false)
   
   useEffect(() => {
     const initializeApp = async () => {
-      console.log('App initializing...')
-      console.log('Auth State:', {
-        isAuthenticated: authState?.isAuthenticated,
-        hasUser: !!authState?.user,
-        mode: authState?.mode,
-        hasCompletedOnboarding: authState?.hasCompletedOnboarding
-      })
-      setIsInitialized(true)
+      if (authState !== undefined) {
+        setIsAuthLoaded(true)
+        setIsInitialized(true)
+      }
     }
     initializeApp()
-  }, [])
+  }, [authState])
   
   const [incidents, setIncidents] = useKV<Incident[]>('incidents', [])
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
@@ -1541,7 +1538,7 @@ function App() {
     }
   }
 
-  if (!isInitialized) {
+  if (!isInitialized || !isAuthLoaded || !authState) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -1552,12 +1549,9 @@ function App() {
     )
   }
 
-  console.log('Rendering with authState:', authState)
-
-  const shouldShowOnboarding = !authState || !authState.isAuthenticated || !authState.hasCompletedOnboarding
+  const shouldShowOnboarding = !authState.isAuthenticated || !authState.hasCompletedOnboarding
 
   if (shouldShowOnboarding) {
-    console.log('Showing WelcomeScreen - not authenticated or onboarding not completed')
     return (
       <>
         <WelcomeScreen onSelectMode={handleSelectMode} />
@@ -1566,6 +1560,7 @@ function App() {
           onClose={() => {
             setShowAPIConfig(false)
             setAuthState((current) => ({
+              ...current!,
               isAuthenticated: true,
               user: current?.user ?? {
                 id: 'guest',
@@ -1584,8 +1579,6 @@ function App() {
       </>
     )
   }
-
-  console.log('Showing main app')
 
   return (
     <div className="min-h-screen bg-background">
