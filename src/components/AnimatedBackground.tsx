@@ -118,7 +118,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
         this.pulsePhase += 0.03
       }
 
-      draw(time: number) {
+      draw(_time: number) {
         if (!ctx) return
         
         const colors = {
@@ -134,10 +134,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
         ctx.beginPath()
         ctx.arc(this.x, this.y, size, 0, Math.PI * 2)
         ctx.fillStyle = colors[this.type]
-        ctx.shadowBlur = 10 + pulse * 10
-        ctx.shadowColor = colors[this.type]
         ctx.fill()
-        ctx.shadowBlur = 0
       }
     }
 
@@ -198,10 +195,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
           ctx.beginPath()
           ctx.arc(x, y, 2, 0, Math.PI * 2)
           ctx.fillStyle = 'oklch(0.55 0.20 200)'
-          ctx.shadowBlur = 8
-          ctx.shadowColor = 'oklch(0.55 0.20 200)'
           ctx.fill()
-          ctx.shadowBlur = 0
         }
       })
     }
@@ -230,7 +224,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
     }
 
     let lastFrameTime = 0
-    const targetFPS = 20 // Limit to 20 FPS for better performance
+    const targetFPS = 12 // Limit to 12 FPS for better performance
     const frameInterval = 1000 / targetFPS
 
     const animate = (time: number) => {
