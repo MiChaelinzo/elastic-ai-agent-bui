@@ -43,8 +43,7 @@ export function LoginScreen({ onLogin, onRegister, onDemoMode }: LoginScreenProp
         setError(errorData.message || 'Invalid credentials')
       }
     } catch (err) {
-      setError('Failed to connect to authentication server. Using demo mode.')
-      setTimeout(() => onDemoMode(), 2000)
+      setError('Unable to connect to authentication server. Please try again or use Demo Mode.')
     } finally {
       setIsLoading(false)
     }
