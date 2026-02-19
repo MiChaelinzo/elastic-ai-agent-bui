@@ -144,7 +144,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
     const initParticles = () => {
       if (!canvas) return
       particles = []
-      const baseParticleCount = Math.min(Math.floor((canvas.width * canvas.height) / 15000), 100)
+      const baseParticleCount = Math.min(Math.floor((canvas.width * canvas.height) / 25000), 60)
       const densityMultiplier = settings.particleDensity / 100
       const particleCount = Math.floor(baseParticleCount * densityMultiplier)
       for (let i = 0; i < particleCount; i++) {
@@ -230,7 +230,7 @@ export function AnimatedBackground({ settings }: AnimatedBackgroundProps) {
     }
 
     let lastFrameTime = 0
-    const targetFPS = 30 // Limit to 30 FPS for better performance
+    const targetFPS = 20 // Limit to 20 FPS for better performance
     const frameInterval = 1000 / targetFPS
 
     const animate = (time: number) => {

@@ -237,11 +237,11 @@ function App() {
   const [notificationSettings, setNotificationSettings] = useKV<NotificationSettings>('notification-settings', defaultNotificationSettings)
   
   const [backgroundSettings, setBackgroundSettings] = useKV<BackgroundSettings>('background-settings', {
-    particleDensity: 30,
-    particleSpeed: 50,
-    nodeSpeed: 50,
+    particleDensity: 15,
+    particleSpeed: 30,
+    nodeSpeed: 30,
     showGrid: false,
-    showConnections: true,
+    showConnections: false,
     showDataFlows: false
   })
   
@@ -853,11 +853,11 @@ function App() {
       isAuthenticated: true,
       user,
       mode: authState?.mode || 'demo',
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: authState?.hasCompletedOnboarding ?? false
     })
     toast.success(`Welcome back, ${user.name}!`)
     
-    if ((incidents || []).length === 0 && authState?.mode === 'demo') {
+    if (authState?.hasCompletedOnboarding && (incidents || []).length === 0 && (authState?.mode || 'demo') === 'demo') {
       setTimeout(() => {
         handleLoadSampleData()
       }, 500)
@@ -899,18 +899,41 @@ function App() {
       role: 'viewer',
       createdAt: Date.now()
     }
+    const alreadyOnboarded = authState?.hasCompletedOnboarding ?? false
     setAuthState({
       isAuthenticated: true,
       user: demoUser,
       mode: 'demo',
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: alreadyOnboarded
     })
     toast.success('Welcome to demo mode!')
     
-    if ((incidents || []).length === 0) {
+    if (alreadyOnboarded && (incidents || []).length === 0) {
       setTimeout(() => {
         handleLoadSampleData()
       }, 500)
+    }
+  }, [setAuthState, authState, incidents])
+
+  const handleSelectMode = useCallback((mode: 'demo' | 'api') => {
+    if (mode === 'api') {
+      setAuthState((current) => ({
+        ...(current || { isAuthenticated: true, user: null, mode: 'demo', hasCompletedOnboarding: false }),
+        mode: 'api',
+        hasCompletedOnboarding: true
+      }))
+      setShowAPIConfig(true)
+    } else {
+      setAuthState((current) => ({
+        ...(current || { isAuthenticated: true, user: null, mode: 'demo', hasCompletedOnboarding: false }),
+        mode: 'demo',
+        hasCompletedOnboarding: true
+      }))
+      if ((incidents || []).length === 0) {
+        setTimeout(() => {
+          handleLoadSampleData()
+        }, 500)
+      }
     }
   }, [setAuthState, incidents])
 
@@ -1537,32 +1560,6 @@ function App() {
     }
   }
 
-  const handleSelectMode = (mode: 'demo' | 'api') => {
-    if (mode === 'api') {
-      setShowAPIConfig(true)
-    } else {
-      const newAuthState: AuthState = {
-        isAuthenticated: true,
-        user: {
-          id: 'guest',
-          email: 'guest@demo.local',
-          name: 'Guest User',
-          role: 'viewer',
-          createdAt: Date.now()
-        },
-        mode: 'demo',
-        hasCompletedOnboarding: true
-      }
-      setAuthState(newAuthState)
-      
-      setTimeout(() => {
-        if ((incidents || []).length === 0) {
-          handleLoadSampleData()
-        }
-      }, 100)
-    }
-  }
-
   const handleSaveAPIConfig = (config: APIConfig) => {
     setApiConfig(config)
     const newAuthState: AuthState = {
@@ -1625,9 +1622,7 @@ function App() {
     )
   }
 
-  const shouldShowLogin = !authState?.isAuthenticated || !authState?.hasCompletedOnboarding
-
-  if (shouldShowLogin) {
+  if (!authState?.isAuthenticated) {
     return (
       <>
         <LoginScreen 
@@ -1647,27 +1642,43 @@ function App() {
     )
   }
 
+  if (!authState?.hasCompletedOnboarding) {
+    return (
+      <>
+        <WelcomeScreen onSelectMode={handleSelectMode} />
+        <APIConfigurationDialog
+          isOpen={showAPIConfig}
+          onClose={() => {
+            setShowAPIConfig(false)
+          }}
+          onSave={handleSaveAPIConfig}
+          initialConfig={apiConfig || undefined}
+        />
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AnimatedBackground settings={backgroundSettings || {
-        particleDensity: 30,
-        particleSpeed: 50,
-        nodeSpeed: 50,
+        particleDensity: 15,
+        particleSpeed: 30,
+        nodeSpeed: 30,
         showGrid: false,
-        showConnections: true,
+        showConnections: false,
         showDataFlows: false
       }} />
       
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/20 rounded-lg">
-                <Lightning size={28} weight="duotone" className="text-primary" />
+                <Lightning size={24} weight="duotone" className="text-primary" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">Elastic Agent Orchestrator</h1>
+                  <h1 className="text-xl font-bold">Elastic Agent Orchestrator</h1>
                   <Badge 
                     variant={authState?.mode === 'api' ? 'default' : 'secondary'}
                     className="text-xs"
@@ -1685,11 +1696,11 @@ function App() {
                     )}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">Multi-Agent DevOps Incident Response</p>
+                <p className="text-xs text-muted-foreground">Multi-Agent DevOps Incident Response</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <UserMenu 
                 user={authState?.user || null} 
                 onSettings={() => setShowSettings(true)}
@@ -1697,16 +1708,24 @@ function App() {
                 onLogout={handleLogout}
               />
               <ThemeToggle />
+              <Button onClick={() => setShowNewIncident(true)} size="sm">
+                <Plus size={16} className="mr-1" weight="bold" />
+                New Incident
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
               <Button 
                 onClick={() => setShowSLADashboard(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Target size={20} className="mr-2" weight="duotone" />
-                SLA Management
+                <Target size={16} className="mr-1" weight="duotone" />
+                SLA
                 {(slaBreaches || []).filter(b => !b.acknowledged).length > 0 && (
-                  <Badge variant="destructive" className="ml-2 animate-pulse">
+                  <Badge variant="destructive" className="ml-1 animate-pulse text-xs px-1">
                     {(slaBreaches || []).filter(b => !b.acknowledged).length}
                   </Badge>
                 )}
@@ -1714,13 +1733,13 @@ function App() {
               <Button 
                 onClick={() => setShowKnowledgeBase(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Book size={20} className="mr-2" weight="duotone" />
-                Knowledge Base
+                <Book size={16} className="mr-1" weight="duotone" />
+                Knowledge
                 {(knowledgeArticles || []).length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {(knowledgeArticles || []).length}
                   </Badge>
                 )}
@@ -1742,13 +1761,13 @@ function App() {
               <Button 
                 onClick={() => setShowCollaborationStats(!showCollaborationStats)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Users size={20} className="mr-2" weight="duotone" />
-                Team Activity
+                <Users size={16} className="mr-1" weight="duotone" />
+                Team
                 {(comments || []).length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {(comments || []).length}
                   </Badge>
                 )}
@@ -1756,13 +1775,13 @@ function App() {
               <Button 
                 onClick={() => setShowAgentHierarchy(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <UsersIcon size={20} className="mr-2" weight="duotone" />
-                Agent Teams
+                <UsersIcon size={16} className="mr-1" weight="duotone" />
+                Agents
                 {(agentTeams || []).length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {(agentTeams || []).length}
                   </Badge>
                 )}
@@ -1770,38 +1789,38 @@ function App() {
               <Button 
                 onClick={() => setShowIntegrationHub(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Plugs size={20} className="mr-2" weight="duotone" />
+                <Plugs size={16} className="mr-1" weight="duotone" />
                 Integrations
                 {(integrations || []).filter(int => int.enabled).length > 0 && (
-                  <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
-                    {(integrations || []).filter(int => int.enabled).length} active
+                  <Badge variant="secondary" className="ml-1 bg-success text-success-foreground text-xs px-1">
+                    {(integrations || []).filter(int => int.enabled).length}
                   </Badge>
                 )}
               </Button>
               <Button 
                 onClick={() => setShowSecurityDashboard(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <ShieldCheck size={20} className="mr-2" weight="duotone" />
-                Security & Compliance
+                <ShieldCheck size={16} className="mr-1" weight="duotone" />
+                Security
               </Button>
               {biometricSettings?.enabled && (
                 <Button
                   onClick={() => setShowBiometricVerification(true)}
                   variant={biometricVerified ? "default" : "outline"}
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <Fingerprint size={20} className="mr-2" weight="duotone" />
-                  {biometricVerified ? `Verified: ${currentVerifiedUser}` : 'Verify Identity'}
+                  <Fingerprint size={16} className="mr-1" weight="duotone" />
+                  {biometricVerified ? 'Verified' : 'Verify'}
                   {biometricVerified && (
-                    <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
-                      <CheckCircle size={14} />
+                    <Badge variant="secondary" className="ml-1 bg-success text-success-foreground">
+                      <CheckCircle size={12} />
                     </Badge>
                   )}
                 </Button>
@@ -1809,12 +1828,12 @@ function App() {
               <Button
                 onClick={() => setShowBiometrics(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
               >
-                <Fingerprint size={20} className="mr-2" weight="duotone" />
-                Voice Biometrics
+                <Fingerprint size={16} className="mr-1" weight="duotone" />
+                Biometrics
                 {(voiceProfiles || []).length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {(voiceProfiles || []).length}
                   </Badge>
                 )}
@@ -1827,31 +1846,31 @@ function App() {
               <Button 
                 onClick={() => setShowVoiceCommands(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
               >
-                <Microphone size={20} className="mr-2" weight="duotone" />
-                Voice Help
+                <Microphone size={16} className="mr-1" weight="duotone" />
+                Voice
               </Button>
               <Button 
                 onClick={() => setShowESQLDashboard(true)}
                 variant="outline"
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Code size={20} className="mr-2" weight="duotone" />
-                ES|QL Console
+                <Code size={16} className="mr-1" weight="duotone" />
+                ES|QL
               </Button>
               <Button 
                 onClick={() => setShowElasticsearchDashboard(true)}
                 variant={elasticsearch.isConnected ? "default" : "outline"}
-                size="lg"
+                size="sm"
                 className="relative"
               >
-                <Database size={20} className="mr-2" weight="duotone" />
-                Elasticsearch
+                <Database size={16} className="mr-1" weight="duotone" />
+                ES
                 {elasticsearch.isConnected && (
-                  <Badge variant="secondary" className="ml-2 bg-success text-success-foreground">
-                    {elasticsearch.streams.filter(s => s.isActive).length} active
+                  <Badge variant="secondary" className="ml-1 bg-success text-success-foreground text-xs px-1">
+                    {elasticsearch.streams.filter(s => s.isActive).length}
                   </Badge>
                 )}
               </Button>
@@ -1859,28 +1878,28 @@ function App() {
                 <Button 
                   onClick={() => setShowLiveStreaming(true)}
                   variant="outline" 
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <Broadcast size={20} className="mr-2" weight="duotone" />
-                  Live Streaming
-                  <span className="ml-2 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                  <Broadcast size={16} className="mr-1" weight="duotone" />
+                  Live
+                  <span className="ml-1 h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
                 </Button>
               )}
               {priorityQueue.length > 0 && (
                 <Button 
                   onClick={() => setShowPriorityQueue(!showPriorityQueue)}
                   variant="outline" 
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <ListBullets size={20} className="mr-2" weight="duotone" />
+                  <ListBullets size={16} className="mr-1" weight="duotone" />
                   Queue
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {priorityQueue.length}
                   </Badge>
                   {queueMetrics.overdueCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse" />
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full animate-pulse" />
                   )}
                 </Button>
               )}
@@ -1888,16 +1907,16 @@ function App() {
                 <Button 
                   onClick={() => setShowPredictiveAnalytics(!showPredictiveAnalytics)}
                   variant="outline" 
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <Brain size={20} className="mr-2" weight="duotone" />
+                  <Brain size={16} className="mr-1" weight="duotone" />
                   Predictions
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {predictiveInsights.length}
                   </Badge>
                   {predictiveInsights.some(i => i.confidence >= 75 && i.actionable) && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-warning rounded-full animate-pulse" />
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-warning rounded-full animate-pulse" />
                   )}
                 </Button>
               )}
@@ -1905,16 +1924,16 @@ function App() {
                 <Button 
                   onClick={() => setShowAnomalyDetection(!showAnomalyDetection)}
                   variant="outline" 
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <Sliders size={20} className="mr-2" weight="duotone" />
+                  <Sliders size={16} className="mr-1" weight="duotone" />
                   Anomalies
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1">
                     {detectedAnomalies.length}
                   </Badge>
                   {detectedAnomalies.some(a => a.severity === 'critical' || a.severity === 'high') && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse" />
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full animate-pulse" />
                   )}
                 </Button>
               )}
@@ -1927,47 +1946,42 @@ function App() {
                     setShowCollaborationViz(true)
                   }}
                   variant="outline" 
-                  size="lg"
+                  size="sm"
                   className="relative"
                 >
-                  <GitBranch size={20} className="mr-2" weight="duotone" />
+                  <GitBranch size={16} className="mr-1" weight="duotone" />
                   Agent Flow
-                  <span className="ml-2 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                  <span className="ml-1 h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
                 </Button>
               )}
-              <Button onClick={() => setShowSettings(true)} variant="outline" size="lg">
-                <Gear size={20} className="mr-2" weight="duotone" />
+              <Button onClick={() => setShowSettings(true)} variant="outline" size="sm">
+                <Gear size={16} className="mr-1" weight="duotone" />
                 Settings
                 {notificationSettings?.enabled && notificationSettings.channels.length > 0 && (
-                  <span className="ml-2 h-2 w-2 bg-success rounded-full animate-pulse" />
+                  <span className="ml-1 h-1.5 w-1.5 bg-success rounded-full animate-pulse" />
                 )}
               </Button>
-              <Button onClick={() => setShowTemplates(true)} variant="outline" size="lg">
-                <Sparkle size={20} className="mr-2" weight="duotone" />
-                Workflow Templates
+              <Button onClick={() => setShowTemplates(true)} variant="outline" size="sm">
+                <Sparkle size={16} className="mr-1" weight="duotone" />
+                Templates
               </Button>
-              <Button onClick={() => setShowAnalytics(!showAnalytics)} variant="outline" size="lg">
-                <ChartLine size={20} className="mr-2" weight="duotone" />
-                {showAnalytics ? 'Hide' : 'Show'} Analytics
+              <Button onClick={() => setShowAnalytics(!showAnalytics)} variant="outline" size="sm">
+                <ChartLine size={16} className="mr-1" weight="duotone" />
+                Analytics
               </Button>
               <ExportIncidents incidents={incidents || []} />
               {(incidents || []).length === 0 && (
-                <Button onClick={handleLoadSampleData} variant="outline" size="lg">
-                  <Brain size={20} className="mr-2" weight="duotone" />
-                  Load Sample Data
+                <Button onClick={handleLoadSampleData} variant="outline" size="sm">
+                  <Brain size={16} className="mr-1" weight="duotone" />
+                  Sample Data
                 </Button>
               )}
-              <Button onClick={() => setShowNewIncident(true)} size="lg">
-                <Plus size={20} className="mr-2" weight="bold" />
-                New Incident
-              </Button>
             </div>
-          </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8 relative z-10">
-        <div className="space-y-8">
+      <div className="container mx-auto px-4 py-4 relative z-10">
+        <div className="space-y-4">
           <MetricsDashboard incidents={incidents || []} />
           
           {externalMetrics.length > 0 && (
@@ -2030,7 +2044,7 @@ function App() {
             </div>
           )}
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {agents.map(agent => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
@@ -2046,9 +2060,9 @@ function App() {
                 <Button 
                   onClick={() => setShowCollaborationViz(true)}
                   variant="outline"
-                  size="lg"
+                  size="sm"
                 >
-                  <ChartLine size={20} className="mr-2" weight="duotone" />
+                  <ChartLine size={16} className="mr-1" weight="duotone" />
                   View Detailed Analysis
                 </Button>
               </div>
