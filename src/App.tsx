@@ -188,6 +188,15 @@ function getRandomRecentTimestamp(maxHoursAgo: number = 72): number {
   return now - (Math.random() * hoursInMs)
 }
 
+const defaultBackgroundSettings: BackgroundSettings = {
+  particleDensity: 15,
+  particleSpeed: 30,
+  nodeSpeed: 30,
+  showGrid: false,
+  showConnections: false,
+  showDataFlows: false
+}
+
 function App() {
   const [authState, setAuthState, deleteAuthState] = useKV<AuthState>('auth-state', {
     isAuthenticated: false,
@@ -1660,14 +1669,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AnimatedBackground settings={backgroundSettings || {
-        particleDensity: 15,
-        particleSpeed: 30,
-        nodeSpeed: 30,
-        showGrid: false,
-        showConnections: false,
-        showDataFlows: false
-      }} />
+      <AnimatedBackground settings={backgroundSettings || defaultBackgroundSettings} />
       
       <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-3">
@@ -1715,7 +1717,7 @@ function App() {
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+          <div className="tab-scroll-container flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50 [&>*]:shrink-0">
               <Button 
                 onClick={() => setShowSLADashboard(true)}
                 variant="outline"
@@ -2016,7 +2018,7 @@ function App() {
             </div>
           )}
 
-          {showPredictiveAnalytics && (incidents || []).length >= 3 && (
+          {showPredictiveAnalytics && predictiveInsights.length > 0 && (
             <div className="animate-slide-in-right grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PredictiveInsights 
                 insights={predictiveInsights}
