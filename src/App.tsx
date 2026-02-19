@@ -853,10 +853,16 @@ function App() {
       isAuthenticated: true,
       user,
       mode: authState?.mode || 'demo',
-      hasCompletedOnboarding: false
+      hasCompletedOnboarding: authState?.hasCompletedOnboarding ?? false
     })
     toast.success(`Welcome back, ${user.name}!`)
-  }, [authState, setAuthState])
+    
+    if (authState?.hasCompletedOnboarding && (incidents || []).length === 0 && (authState?.mode || 'demo') === 'demo') {
+      setTimeout(() => {
+        handleLoadSampleData()
+      }, 500)
+    }
+  }, [authState, incidents, setAuthState])
 
   const handleRegister = useCallback(async (email: string, password: string, name: string) => {
     return await registerUser(email, password, name)
@@ -893,14 +899,21 @@ function App() {
       role: 'viewer',
       createdAt: Date.now()
     }
+    const alreadyOnboarded = authState?.hasCompletedOnboarding ?? false
     setAuthState({
       isAuthenticated: true,
       user: demoUser,
       mode: 'demo',
-      hasCompletedOnboarding: false
+      hasCompletedOnboarding: alreadyOnboarded
     })
     toast.success('Welcome to demo mode!')
-  }, [setAuthState])
+    
+    if (alreadyOnboarded && (incidents || []).length === 0) {
+      setTimeout(() => {
+        handleLoadSampleData()
+      }, 500)
+    }
+  }, [setAuthState, authState, incidents])
 
   const handleSelectMode = useCallback((mode: 'demo' | 'api') => {
     if (mode === 'api') {
